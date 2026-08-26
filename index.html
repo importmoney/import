@@ -1335,6 +1335,7 @@ body.light #panel-global .pg-candle-wrap{background-color:inherit!important;bord
                   <th style="text-align:right">IRRF ST</th>
                   <th style="text-align:right">IRRF DT</th>
                   <th style="text-align:right">Líquido</th>
+                  <th style="text-align:right" title="Líquido da nota − Valor líquido das operações">Despesas da Operação</th>
                   <th style="text-align:center">Ações</th>
                 </tr>
               </thead>
@@ -5032,6 +5033,16 @@ function parsearSecaoNota(texto){
   const liquidoValor = liquidoM ? parseValNota(liquidoM[1]) : 0;
   const liquidoDC    = liquidoM ? liquidoM[2] : '';
 
+  // Valor líquido das operações (resumo "Clearing", antes dos custos de Bolsa/CBLC)
+  const liquidoOperacoes = extrairValor('Valor\\s*l[íi]quido\\s*das\\s*opera');
+
+  // Despesas da Operação = |Líquido da nota − Valor líquido das operações|
+  // Captura o custo total real da nota (taxas + impostos + emolumentos etc.),
+  // servindo de conferência independente do somatório das taxas individuais.
+  const despesasOperacao = (liquidoValor > 0 && liquidoOperacoes > 0)
+    ? Math.round(Math.abs(liquidoValor - liquidoOperacoes) * 100) / 100
+    : 0;
+
   const financeiro = {
     taxaLiquidacao,
     taxaRegistro,
@@ -5045,6 +5056,8 @@ function parsearSecaoNota(texto){
     irrfDT,     // IRRF DT (day trade)
     liquidoValor,
     liquidoDC,
+    liquidoOperacoes,
+    despesasOperacao,
   };
 
   return {dataPregao, numNota, corretora, negocios, cpf, nomeTitular, financeiro, _formatoNubank: isFormatoNubank||false};
@@ -5195,6 +5208,7 @@ function renderPreviewLote(resultados){
         fi.irrfDT>0         ? `IRRF DT: <strong>${fmt(fi.irrfDT)}</strong>` : '',
         fi.impostos>0       ? `Impostos: <strong>${fmt(fi.impostos)}</strong>` : '',
         fi.liquidoValor>0   ? `<span style="color:${fi.liquidoDC==='C'?'var(--green)':'var(--red)'}">Líquido: <strong>${fmt(fi.liquidoValor)}</strong> ${fi.liquidoDC}</span>` : '',
+        fi.despesasOperacao>0 ? `Despesas da Operação: <strong>${fmt(fi.despesasOperacao)}</strong>` : '',
       ].filter(Boolean).join(' &nbsp;·&nbsp; ');
       tableHTML+=`<tr><td colspan="10" style="font-size:11px;color:var(--text2);background:var(--surface2);padding:5px 14px;border-top:1px dashed var(--border)">
         📋 ${cols}
@@ -11357,7 +11371,7 @@ function renderNotas(pag){
     ${notasSelecionadas.size ? `<span style="color:var(--red);margin-left:auto;font-weight:500">● ${notasSelecionadas.size} selecionada${notasSelecionadas.size!==1?'s':''}</span>` : ''}`;
 
   if(!filtradas.length){
-    tbody.innerHTML = `<tr><td colspan="13" class="notas-empty">
+    tbody.innerHTML = `<tr><td colspan="14" class="notas-empty">
       <div style="font-size:32px;margin-bottom:8px">📑</div>
       ${busca ? 'Nenhuma nota encontrada para "'+busca+'"' : 'Nenhuma nota importada ainda.<br><span style="font-size:12px">Use o botão <b>Importar nota</b> na aba Registrar operação.</span>'}
     </td></tr>`;
@@ -11400,6 +11414,7 @@ function renderNotas(pag){
     const irrfDT    = fi.irrfDT||0;
     const liqNota   = fi.liquidoValor||0;
     const liqDC     = fi.liquidoDC||'';
+    const despesaNota = fi.despesasOperacao||0;
     const fmtFiN = (v,cor) => v>0
       ? `<span style="font-family:'DM Mono',monospace;font-size:12px;color:${cor||'var(--red)'}">R$ ${fmtBR(v)}</span>`
       : `<span style="color:var(--text3);font-size:12px">—</span>`;
@@ -11448,6 +11463,7 @@ function renderNotas(pag){
       <td style="text-align:right">${fmtFiN(irrfST)}</td>
       <td style="text-align:right">${fmtFiN(irrfDT)}</td>
       <td style="text-align:right">${liqNota>0?fmtFiN(liqNota, liqDC==='C'?'var(--green)':'var(--red)'):'<span style="color:var(--text3);font-size:12px">—</span>'}</td>
+      <td style="text-align:right">${fmtFiN(despesaNota, 'var(--amber)')}</td>
       <td style="text-align:center">
         <button class="btn btn-ghost btn-sm" style="color:var(--red);padding:3px 8px;font-size:11px"
           onclick="confirmarRemoverNota('${n.chave}')" title="Remover esta nota">
