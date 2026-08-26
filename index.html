@@ -5013,6 +5013,23 @@ function parsearSecaoNota(texto){
     return m ? parseValNota(m[1]) : 0;
   };
 
+  // Formato de notas de Day Trade / BM&F (futuros, WIN/WDO etc.): os rótulos
+  // ficam todos numa linha ("Venda disponível  Compra disponível  ...  Valor
+  // dos negócios") e os valores correspondentes na linha seguinte, na mesma
+  // ordem das colunas ("0,00  0,00  ...  51,00 | C"). Busca o rótulo, pega a
+  // linha seguinte e extrai o valor pelo índice da coluna (-1 = última).
+  const extrairValorLinhaSeguinte = (rotulo, indice) => {
+    const re = new RegExp(rotulo + '[^\\n]*\\n([^\\n]+)', 'i');
+    const m = txt.match(re);
+    if(!m) return {valor:0, dc:''};
+    const linha = m[1].trim();
+    const nums = linha.match(new RegExp(NUM_BR, 'g'));
+    if(!nums || !nums.length) return {valor:0, dc:''};
+    const idx = indice < 0 ? nums.length + indice : indice;
+    const dcM = linha.match(/([DC])\s*$/);
+    return { valor: nums[idx] !== undefined ? parseValNota(nums[idx]) : 0, dc: dcM ? dcM[1] : '' };
+  };
+
   const taxaLiquidacao  = extrairValor('Taxa de liquidação');
   const taxaRegistro    = extrairValor('Taxa de Registro');
   const emolumentos     = extrairValor('Emolumentos');
@@ -5029,9 +5046,12 @@ function parsearSecaoNota(texto){
              || txt.match(/I\.?R\.?R\.?F\.?\s+s[/\/]\s*opera[çc][oõ]es.+?([\d]+[.,][\d]{2})\s*\n/i);
   const irrf = irrfM ? parseValNota(irrfM[1]) : 0;
 
-  // IRRF DT: "IRRF Day Trade: Base R$ 15,91 Projeção R$ 0,00"
+  // IRRF DT: "IRRF Day Trade: Base R$ 15,91 Projeção R$ 0,00" ou, no formato
+  // de notas BM&F/Day Trade (colunas "IRRF | IRRF Day Trade (proj.) | ..."
+  // com os valores na linha seguinte), pega a 2ª coluna dessa linha.
   const irrfDTm = txt.match(/IRRF\s+Day\s+Trade[^R]*R\$\s*([\d.,]+)/i);
-  const irrfDT  = irrfDTm ? parseValNota(irrfDTm[1]) : 0;
+  const irrfDT  = irrfDTm ? parseValNota(irrfDTm[1])
+                : extrairValorLinhaSeguinte('IRRF\\s+IRRF\\s+Day\\s+Trade', 1).valor;
 
   // "Total Custos / Despesas" = soma oficial de todas as taxas da nota
   // Se vier zero (ex: notas Clear/XP sem corretagem), usa "Total Bovespa / Soma" como fallback
@@ -5044,11 +5064,16 @@ function parsearSecaoNota(texto){
   const liquidoM = txt.match(new RegExp('(' + NUM_BR + ')[ \\t]+L[íi]quido[ \\t]+para[ \\t]+\\d{2}\\/\\d{2}\\/\\d{4}[ \\t]*([DC])?', 'i'))
                 || txt.match(new RegExp('L[íi]quido\\s+para\\s+\\d{2}\\/\\d{2}\\/\\d{4}\\s+(' + NUM_BR + ')\\s*([DC])', 'i'))
                 || txt.match(new RegExp('L[íi]quido\\s+para\\s+\\d{2}\\/\\d{2}\\/\\d{4}\\n(' + NUM_BR + ')\\n([DC])', 'i'));
-  const liquidoValor = liquidoM ? parseValNota(liquidoM[1]) : 0;
-  const liquidoDC    = liquidoM ? liquidoM[2] : '';
+  // Fallback: notas de Day Trade/BM&F usam "Total líquido da nota" em vez de
+  // "Líquido para DD/MM/AAAA"
+  const totalLiquidoNotaBMF = !liquidoM ? extrairValorLinhaSeguinte('Total\\s+l[íi]quido\\s+da\\s+nota', -1) : null;
+  const liquidoValor = liquidoM ? parseValNota(liquidoM[1]) : (totalLiquidoNotaBMF?.valor || 0);
+  const liquidoDC    = liquidoM ? liquidoM[2] : (totalLiquidoNotaBMF?.dc || '');
 
   // Valor líquido das operações (resumo "Clearing", antes dos custos de Bolsa/CBLC)
-  const liquidoOperacoes = extrairValor('Valor\\s*l[íi]quido\\s*das\\s*opera');
+  // Fallback: notas de Day Trade/BM&F usam "Valor dos negócios"
+  const liquidoOperacoes = extrairValor('Valor\\s*l[íi]quido\\s*das\\s*opera')
+                         || extrairValorLinhaSeguinte('Valor\\s+dos\\s+neg[óo]cios', -1).valor;
 
   // Despesas da Operação = |Líquido da nota − Valor líquido das operações|
   // O IRRF NÃO entra nessa conta: em todas as notas testadas (compra e venda),
