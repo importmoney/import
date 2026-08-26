@@ -11034,7 +11034,7 @@ const TOUR_ENABLED_KEY = 'tour_enabled_v1'; // 'true' | 'false'
 
 function isTourEnabled(){
   const v = localStorage.getItem(TOUR_ENABLED_KEY);
-  return v === null ? true : v === 'true'; // padrão: habilitado
+  return v === null ? false : v === 'true'; // padrão: desabilitado — só ativa se o usuário clicar
 }
 
 function toggleTourGlobal(){
