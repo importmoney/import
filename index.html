@@ -4994,11 +4994,22 @@ function parsearSecaoNota(texto){
     return parseFloat(String(s).replace(/\./g,'').replace(',','.').replace(/\s*[DC]\s*$/,'').trim()) || 0;
   };
 
-  // Buscar valor numérico após um rótulo (mesmo em linhas separadas)
+  // Número em formato brasileiro (com milhar opcional): "474,74" ou "3.236,54"
+  const NUM_BR = '\\d{1,3}(?:\\.\\d{3})*,\\d{2}';
+
+  // Buscar valor numérico associado a um rótulo — em qualquer das duas ordens
+  // possíveis que o PDF.js pode extrair, dependendo do layout da nota:
+  //  (a) "123,45 Rótulo"          — tabela "Resumo Financeiro" em 2 colunas
+  //      (o valor fica à esquerda do rótulo no fluxo de texto extraído);
+  //      tentada primeiro por ser mais específica (mesma linha, sem risco
+  //      de "vazar" pra linha seguinte)
+  //  (b) "Rótulo ... 123,45"      — os demais formatos
   const extrairValor = (rotulo) => {
-    // Busca pelo rótulo exato, depois o próximo número (na mesma linha ou linha seguinte)
-    const re = new RegExp(rotulo + '[^\\d\\n]*\\n?[^\\d\\n]*([\\d]+[.,][\\d]{2})', 'i');
-    const m = txt.match(re);
+    let re = new RegExp('(' + NUM_BR + ')[ \\t]+' + rotulo, 'i');
+    let m = txt.match(re);
+    if(m) return parseValNota(m[1]);
+    re = new RegExp(rotulo + '[^\\d\\n]*\\n?[^\\d\\n]*(' + NUM_BR + ')', 'i');
+    m = txt.match(re);
     return m ? parseValNota(m[1]) : 0;
   };
 
@@ -5010,8 +5021,11 @@ function parsearSecaoNota(texto){
   const execucao        = extrairValor('Execução');
   const impostos        = extrairValor('Impostos');
 
-  // IRRF ST: "I.R.R.F. s/ operações, base R$XXX   0,04"
-  const irrfM = txt.match(/I\.?R\.?R\.?F\.?\s+s[/\/]\s*opera[çc][oõ]es[^\d\n]*[\d.,]+[^\d\n]*\n?[^\d\n]*([\d]+[.,][\d]{2})/i)
+  // IRRF ST: "0,04 I.R.R.F. s/ operações, base R$XXX" (ordem invertida da tabela
+  // "Resumo Financeiro" em 2 colunas — tentada primeiro) ou, nos demais formatos,
+  // "I.R.R.F. s/ operações, base R$XXX   0,04"
+  const irrfM = txt.match(new RegExp('(' + NUM_BR + ')[ \\t]+I\\.?R\\.?R\\.?F\\.?\\s+s[/\\/]\\s*opera[çc][oõ]es', 'i'))
+             || txt.match(new RegExp('I\\.?R\\.?R\\.?F\\.?\\s+s[/\\/]\\s*opera[çc][oõ]es[^\\d\\n]*[\\d.,]+[^\\d\\n]*\\n?[^\\d\\n]*(' + NUM_BR + ')', 'i'))
              || txt.match(/I\.?R\.?R\.?F\.?\s+s[/\/]\s*opera[çc][oõ]es.+?([\d]+[.,][\d]{2})\s*\n/i);
   const irrf = irrfM ? parseValNota(irrfM[1]) : 0;
 
@@ -5025,9 +5039,11 @@ function parsearSecaoNota(texto){
   const totalBovespa = extrairValor('Total Bovespa');
   const corretagem   = totalCustos > 0 ? totalCustos : totalBovespa;
 
-  // Líquido para DD/MM/AAAA
-  const liquidoM = txt.match(/L[íi]quido\s+para\s+\d{2}\/\d{2}\/\d{4}\s+([\d.,]+)\s*([DC])/i)
-                || txt.match(/L[íi]quido\s+para\s+\d{2}\/\d{2}\/\d{4}\n([\d.,]+)\n([DC])/i);
+  // "123,45 Líquido para DD/MM/AAAA   D" (ordem invertida — tentada primeiro)
+  // ou "Líquido para DD/MM/AAAA   123,45 D" (demais formatos)
+  const liquidoM = txt.match(new RegExp('(' + NUM_BR + ')[ \\t]+L[íi]quido[ \\t]+para[ \\t]+\\d{2}\\/\\d{2}\\/\\d{4}[ \\t]*([DC])?', 'i'))
+                || txt.match(new RegExp('L[íi]quido\\s+para\\s+\\d{2}\\/\\d{2}\\/\\d{4}\\s+(' + NUM_BR + ')\\s*([DC])', 'i'))
+                || txt.match(new RegExp('L[íi]quido\\s+para\\s+\\d{2}\\/\\d{2}\\/\\d{4}\\n(' + NUM_BR + ')\\n([DC])', 'i'));
   const liquidoValor = liquidoM ? parseValNota(liquidoM[1]) : 0;
   const liquidoDC    = liquidoM ? liquidoM[2] : '';
 
