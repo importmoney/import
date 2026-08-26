@@ -1333,7 +1333,7 @@ body.light #panel-global .pg-candle-wrap{background-color:inherit!important;bord
                   <th style="text-align:right">IRRF ST</th>
                   <th style="text-align:right">IRRF DT</th>
                   <th style="text-align:right">Líquido</th>
-                  <th style="text-align:right" title="Líquido da nota − Valor líquido das operações − IRRF ST − IRRF DT">Despesas da Operação</th>
+                  <th style="text-align:right" title="Líquido da nota − Valor líquido das operações">Despesas da Operação</th>
                   <th style="text-align:center">Ações</th>
                 </tr>
               </thead>
@@ -5034,11 +5034,13 @@ function parsearSecaoNota(texto){
   // Valor líquido das operações (resumo "Clearing", antes dos custos de Bolsa/CBLC)
   const liquidoOperacoes = extrairValor('Valor\\s*l[íi]quido\\s*das\\s*opera');
 
-  // Despesas da Operação = |Líquido da nota − Valor líquido das operações − IRRF ST − IRRF DT|
-  // Captura o custo total real da nota (taxas + emolumentos etc., excluindo o
-  // IRRF retido, que é discriminado separadamente nas colunas IRRF ST/IRRF DT).
+  // Despesas da Operação = |Líquido da nota − Valor líquido das operações|
+  // O IRRF NÃO entra nessa conta: em todas as notas testadas (compra e venda),
+  // essa diferença já corresponde exatamente à soma das taxas (liquidação,
+  // emolumentos etc.), com o IRRF sempre à parte — subtraí-lo aqui inverteria
+  // o sinal em notas de venda e daria um valor errado.
   const despesasOperacao = (liquidoValor > 0 && liquidoOperacoes > 0)
-    ? Math.round(Math.abs(liquidoValor - liquidoOperacoes - irrf - irrfDT) * 100) / 100
+    ? Math.round(Math.abs(liquidoValor - liquidoOperacoes) * 100) / 100
     : 0;
 
   const financeiro = {
