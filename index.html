@@ -2230,6 +2230,10 @@ let wixBootApp = () => {
   try { const r=localStorage.getItem(KEY); if(r) ops=JSON.parse(r); } catch(e){}
   try { const r=localStorage.getItem(SIM_KEY); if(r) simState=JSON.parse(r); } catch(e){}
   try { const r=localStorage.getItem(GASTOS_KEY); if(r) gastosData=JSON.parse(r); } catch(e){}
+  // Reaplicar configurações (tema, sidebar compacta/auto-ocultar etc.) agora que
+  // o valor OFICIAL salvo no Wix chegou — o boot inicial aplicou um valor
+  // provisório (o que já estava em cache local) antes deste dado chegar.
+  if(typeof aplicarSettingsBoot === 'function') aplicarSettingsBoot();
   // Re-renderizar com os dados carregados do Wix
   renderDashboard();
   const badge = document.getElementById('wix-sync-badge');
