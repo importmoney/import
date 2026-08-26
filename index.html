@@ -1666,6 +1666,19 @@ body.light #panel-global .pg-candle-wrap{background-color:inherit!important;bord
           </div>
         </div>
 
+        <!-- Conta Wix (login) -->
+        <div class="acct-card" id="conta-wix-card" style="display:none">
+          <div class="acct-card-title">Minha conta (Wix)</div>
+          <div style="font-size:13px;color:var(--text2);margin-bottom:14px;line-height:1.6">
+            Gerencie seu login e assinatura diretamente pelo Wix, ou saia da sua conta.
+          </div>
+          <div style="display:flex;gap:8px;flex-wrap:wrap">
+            <button class="btn btn-sm" onclick="wixNavegarConta('settings')">⚙ Configurações da Conta</button>
+            <button class="btn btn-sm" onclick="wixNavegarConta('subscriptions')">💳 Minhas Assinaturas</button>
+            <button class="btn btn-sm btn-danger" onclick="wixSair()">🚪 Sair</button>
+          </div>
+        </div>
+
         <!-- Estatísticas da carteira -->
         <div class="acct-card">
           <div class="acct-card-title">Resumo da carteira</div>
@@ -2198,6 +2211,16 @@ function wixInit() {
   setTimeout(() => {
     if(!_wixReady){ _wixReady = true; wixBootApp(); }
   }, 6000);
+}
+
+// ── Conta Wix: sair e navegar para páginas da Área de Membros ──────
+function wixSair(){
+  if(!WIX_MODE){ toast('Disponível apenas dentro do Wix.', 'warn'); return; }
+  try { (window.top||window.parent).postMessage({ tipo: 'WIX_LOGOUT' }, '*'); } catch(e){}
+}
+function wixNavegarConta(destino){
+  if(!WIX_MODE){ toast('Disponível apenas dentro do Wix.', 'warn'); return; }
+  try { (window.top||window.parent).postMessage({ tipo: 'WIX_NAVEGAR_CONTA', destino }, '*'); } catch(e){}
 }
 
 // Função chamada quando os dados estão prontos para usar
@@ -8406,6 +8429,10 @@ function renderConta(){
     const el = document.getElementById('theme-card-'+t);
     if(el) el.classList.toggle('active', t === temaAtual);
   });
+
+  // Card "Minha conta (Wix)" só faz sentido rodando dentro do Wix
+  const contaWixCard = document.getElementById('conta-wix-card');
+  if(contaWixCard) contaWixCard.style.display = WIX_MODE ? '' : 'none';
 
   // Perfil
   const nome = titular?.nome || '';
