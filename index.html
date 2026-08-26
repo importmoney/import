@@ -3900,25 +3900,30 @@ function splitNotasPDF(texto){
     .replace(/NOTA\s*\n\s*DE\s*\n\s*NEGOCIAÇÃO/gi, 'NOTA DE NEGOCIAÇÃO')
     .replace(/NOTA\s*\n\s*DE\s+NEGOCIAÇÃO/gi,      'NOTA DE NEGOCIAÇÃO');
 
-  // Marcador: "Negócios realizados" vem ANTES dos trades em cada nota
-  const reTrades = /Negócios\s+realizados/gi;
+  // Marcador de início de nota: o cabeçalho de negócios vem ANTES dos trades
+  // em cada nota. Notas de ações usam "Negócios realizados"; notas de Day
+  // Trade/BM&F (futuros) não têm esse cabeçalho — começam direto na tabela
+  // "C/V  Mercadoria  Vencimento...". Um PDF com várias notas pode misturar
+  // os dois tipos, então os dois marcadores são buscados juntos.
+  // Ancorado no início da linha (^, com flag "m") para não confundir com a
+  // frase "negócios realizados" que também aparece solta em textos de rodapé.
+  const reTrades = /^Neg[oó]cios\s+realizados\s*$|^C\/V\s+Mercadoria\s+Vencimento/gim;
   const marcadores = [];
   let m;
   while((m = reTrades.exec(txt)) !== null){
     marcadores.push(m.index);
   }
 
-  // Fallback: dividir por "NOTA DE NEGOCIAÇÃO"
-  if(marcadores.length <= 1){
-    const reNota = /NOTA\s+DE\s+NEGOCIAÇÃO/gi;
-    const marc2 = [];
-    while((m = reNota.exec(txt)) !== null) marc2.push(m.index);
-    if(marc2.length > 1) return marc2.map((ini, i) => txt.slice(ini, marc2[i+1] ?? txt.length));
-    return [txt]; // nota única
+  if(marcadores.length > 1){
+    return marcadores.map((ini, i) => txt.slice(ini, marcadores[i+1] ?? txt.length));
   }
 
-  if(marcadores.length <= 1) return [txt];
-  return marcadores.map((ini, i) => txt.slice(ini, marcadores[i+1] ?? txt.length));
+  // Fallback: nenhum cabeçalho de negócios reconhecido — dividir por "NOTA DE NEGOCIAÇÃO"
+  const reNota = /NOTA\s+DE\s+NEGOCIAÇÃO/gi;
+  const marc2 = [];
+  while((m = reNota.exec(txt)) !== null) marc2.push(m.index);
+  if(marc2.length > 1) return marc2.map((ini, i) => txt.slice(ini, marc2[i+1] ?? txt.length));
+  return [txt]; // nota única
 }
 
 function parsearSecaoNota(texto){
@@ -3930,7 +3935,8 @@ function parsearSecaoNota(texto){
     .replace(/NOTA\s*\n\s*DE\s*\n\s*NEGOCIAÇÃO/gi, 'NOTA DE NEGOCIAÇÃO')
     .replace(/NOTA\s*\n\s*DE\s+NEGOCIAÇÃO/gi,      'NOTA DE NEGOCIAÇÃO')
     // Nr. nota pode ter o número na linha seguinte: "Nr. nota\n135136278"
-    .replace(/(Nr\.?\s*nota)\s*\n\s*(\d{5,12})/gi, '$1 $2')
+    // (notas de Day Trade/BM&F numeram com ponto, ex.: "679.853")
+    .replace(/(Nr\.?\s*nota)\s*\n\s*([\d.]{5,14})/gi, '$1 $2')
     // Data pregão com data na linha seguinte: "Data pregão\n28/04/2026"
     .replace(/(Data\s+preg[aã]o)\s*\n\s*(\d{2}\/\d{2}\/\d{4})/gi, '$1 $2')
     // BTG/Inter: "N° da Nota\n12345678"
@@ -3952,10 +3958,14 @@ function parsearSecaoNota(texto){
   const isFormatoNubank = /Nu\s*Investimentos/i.test(texto) && /N[úu]mero\s+da\s+nota/i.test(texto);
 
   // Extrair número da nota — SINACOR: "Nr. nota XXXXX", BTG/Inter: "Nota de Corretagem Nº XXXXX"
-  const notaMs = [...txt.matchAll(/Nr\.?\s*nota\s+(\d{5,12})/gi)]
-    .concat([...txt.matchAll(/N[°o]?\.?\s*(?:da\s+)?(?:nota|corretagem)\s*[:\s]?\s*(\d{5,12})/gi)])
+  // Notas de Day Trade/BM&F numeram o "Nr. nota" com ponto (ex.: "679.853"),
+  // por isso o padrão aceita um grupo de milhar separado por ponto (capturado
+  // junto, e o ponto é removido depois na normalização do numNota).
+  const NUM_NOTA = '(\\d{1,3}(?:\\.\\d{3})+|\\d{5,12})';
+  const notaMs = [...txt.matchAll(new RegExp('Nr\\.?\\s*nota\\s+' + NUM_NOTA, 'gi'))]
+    .concat([...txt.matchAll(new RegExp('N[°o]?\\.?\\s*(?:da\\s+)?(?:nota|corretagem)\\s*[:\\s]?\\s*' + NUM_NOTA, 'gi'))])
     .concat([...txt.matchAll(/\b(\d{7,12})\s+(?:Folha|P[áa]gina)\s+\d/gi)]);
-  const numNota = notaMs.length ? (notaMs[0][1] || notaMs[0][2] || notaMs[0][3] || '') : '';
+  const numNota = (notaMs.length ? (notaMs[0][1] || notaMs[0][2] || notaMs[0][3] || '') : '').replace(/\./g,'');
 
   // Extrair data — SINACOR: "Data pregão DD/MM/AAAA"
   // BTG/Inter: "Data do Pregão DD/MM/AAAA" | Nubank: "Data de Negociação DD/MM/AAAA"
