@@ -11461,7 +11461,7 @@ function renderNotas(pag){
   if(!filtradas.length){
     tbody.innerHTML = `<tr><td colspan="12" class="notas-empty">
       <div style="font-size:32px;margin-bottom:8px">📑</div>
-      ${busca ? 'Nenhuma nota encontrada para "'+busca+'"' : 'Nenhuma nota importada ainda.<br><span style="font-size:12px">Use o botão <b>Importar nota</b> na aba Registrar operação.</span>'}
+      ${notasBusca ? 'Nenhuma nota encontrada para "'+notasBusca+'"' : 'Nenhuma nota importada ainda.<br><span style="font-size:12px">Use o botão <b>Importar nota</b> na aba Registrar operação.</span>'}
     </td></tr>`;
     if(infoEl) infoEl.innerHTML='';
     if(pagEl)  pagEl.innerHTML='';
