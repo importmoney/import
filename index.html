@@ -2406,6 +2406,26 @@ function hideUndoBtn(){
   clearTimeout(_undoTimer);
 }
 
+// Atualiza a aba atualmente visível na tela. Chamada depois de qualquer
+// mutação que possa deixar a tela desatualizada (desfazer, importar nota,
+// remover nota etc.) — evita ter que apertar F5 ou trocar de aba pra ver
+// a mudança refletida.
+function atualizarAbaAtiva(){
+  const ativo = document.querySelector('.panel.active')?.id?.replace('panel-','');
+  if(ativo==='posicoes')              renderPosicoes();
+  else if(ativo==='historico')        { updateTickerFilter(); renderHistorico(); }
+  else if(ativo==='simulador')        simInit();
+  else if(ativo==='cotacoes')         buscarCotacoes();
+  else if(ativo==='comparacao')       renderComparacao();
+  else if(ativo==='notas')            renderNotas();
+  else if(ativo==='ir')               renderIR();
+  else if(ativo==='painel')           renderPainelContent();
+  else if(ativo==='global')           iniciarPainelGlobal();
+  else if(ativo==='conta')            renderConta();
+  else if(ativo==='proventos')        renderProventos();
+  else if(ativo==='gastos')           renderGastos();
+}
+
 function undoAction(){
   if(!_undoStack.length) return;
   const snap = _undoStack.pop();
@@ -2420,16 +2440,7 @@ function undoAction(){
   // Sempre recalcular o dashboard (recalcula computePosicoes, charts, métricas)
   renderDashboard();
   // Também atualizar a aba ativa se for diferente do dashboard
-  const ativo = document.querySelector('.panel.active')?.id?.replace('panel-','');
-  if(ativo==='posicoes')              renderPosicoes();
-  else if(ativo==='historico')        { updateTickerFilter(); renderHistorico(); }
-  else if(ativo==='simulador')        simInit();
-  else if(ativo==='cotacoes')         buscarCotacoes();
-  else if(ativo==='comparacao')       renderComparacao();
-  else if(ativo==='notas')            renderNotas();
-  else if(ativo==='ir')               renderIR();
-  else if(ativo==='painel')           renderPainelContent();
-  else if(ativo==='global')           iniciarPainelGlobal();
+  atualizarAbaAtiva();
   toast('Ação desfeita ↩', 'info');
 }
 // ═══════════════════════════════════════════════════════
@@ -4998,6 +5009,32 @@ function parsearSecaoNota(texto){
     }
   }
 
+  // ── Day Trade / BM&F (contratos futuros: WIN, WDO, IND, DOL etc.) ──
+  // Essas notas não têm o prefixo "BOVESPA" que os parsers acima exigem —
+  // usam sua própria tabela: "C/V  Mercadoria  Vencimento  Quantidade
+  // Preço/Ajuste  Tipo Negócio  Vlr de Operação/Ajuste  D/C  Taxa Operacional"
+  // Ex.: "C  WIN J19  17/04/2019  1  96.445,0000  DAY TRADE  356,00  D  0,00"
+  // O "preço" é sintetizado como Vlr de Operação ÷ Quantidade, pois o
+  // Preço/Ajuste vem em pontos do índice/dólar, não em R$ — assim
+  // qtd×preço reproduz corretamente o valor real (R$) de cada negócio.
+  {
+    const reFuturo = /^([CV])\s+([A-Z]{2,5})\s+([A-Z]\d{2})\s+@?\d{2}\/\d{2}\/\d{4}\s+(\d+)\s+[\d.,]+\s+(?:DAY\s+TRADE|SWING\s+TRADE)\s+([\d.,]+)\s+([DC])\s+[\d.,]+\s*$/gim;
+    let mFut;
+    while((mFut = reFuturo.exec(txt)) !== null){
+      const cvF = mFut[1].toUpperCase();
+      const tkF = mFut[2].toUpperCase() + mFut[3].toUpperCase();
+      const qtdF = parseInt(mFut[4]);
+      const valorOpF = parseFloat(mFut[5].replace(/\./g,'').replace(',','.'));
+      if(!qtdF || !valorOpF) continue;
+      const precoF = Math.round((valorOpF / qtdF) * 100) / 100;
+      negocios.push({
+        tipo: cvF==='C' ? 'Compra' : 'Venda', ticker: tkF, qtd: qtdF, preco: precoF,
+        data: dataPregao, nota: numNota, corretora,
+        _nomeOriginal: tkF, _sel: true, _mercado: 'FUTURO',
+      });
+    }
+  }
+
   // ── Resumo Financeiro da nota ────────────────────────────────────
   const parseValNota = s => {
     if(!s) return 0;
@@ -5340,7 +5377,7 @@ function confirmarNota(){
   verificarRenomesAposImportacao(novasOps); // corrigir tickers antes de salvar
   novasOps.forEach(op=>ops.push(op));
   registrarVendasPendentesComoRecebimentos(novasOps);
-  save();fecharModalNota();renderDashboard();
+  save();fecharModalNota();renderDashboard();atualizarAbaAtiva();
   const totalFolhas = Object.values(folhasPorNota).reduce((s,f)=>s+f,0);
   const folhasLabel = totalFolhas > notas.length ? ` · ${totalFolhas} folhas` : '';
   toast(`${sel.length} operação(ões) de ${notas.length||1} nota${notas.length>1?'s':''}importada${notas.length>1?'s':'s'}${folhasLabel}!`);
@@ -11653,6 +11690,7 @@ function removerNotas(chaves){
   notasSelecionadas.clear();
   renderNotas();
   renderDashboard();
+  atualizarAbaAtiva();
 
   toast(`🗑 ${totalRem} operaç${totalRem!==1?'ões':'ão'} removida${totalRem!==1?'s':''} de ${chaves.length} nota${chaves.length!==1?'s':''}.`, 'warn');
 }
