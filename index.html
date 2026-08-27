@@ -3743,6 +3743,17 @@ async function _executarProcessNota(files){
             const existente = mapaNotas.get(chave);
             existente.negocios.push(...p.negocios);
             existente._folhas = (existente._folhas||1) + 1;
+            // O resumo financeiro (Despesas da Operação, IRRF etc.) às vezes só
+            // aparece impresso numa das folhas (ex.: notas BM&F com 2 folhas,
+            // onde a folha 1 só tem negócios e a folha 2 tem o resumo). Preenche
+            // com os valores da folha que efetivamente os tiver.
+            if(existente.financeiro && p.financeiro){
+              for(const k of Object.keys(existente.financeiro)){
+                if(!existente.financeiro[k] && p.financeiro[k]) existente.financeiro[k] = p.financeiro[k];
+              }
+            } else if(!existente.financeiro && p.financeiro){
+              existente.financeiro = p.financeiro;
+            }
           } else {
             p._folhas = 1;
             mapaNotas.set(chave, p);
@@ -3891,8 +3902,32 @@ function parsearNotaTexto(texto){
   // Dividir o texto em seções por nota
   const secoes = splitNotasPDF(texto);
   if(secoes.length > 1){
-    // Parsear cada seção individualmente e combinar os negócios
-    const resultados = secoes.map(s => parsearSecaoNota(s)).filter(r => r && r.negocios.length > 0);
+    // Parsear cada seção individualmente
+    const brutos = secoes.map(s => parsearSecaoNota(s)).filter(Boolean);
+    // Algumas notas com 2 folhas têm o "Resumo Financeiro" (Despesas da
+    // Operação, IRRF etc.) só numa das folhas, sem nenhum negócio nela
+    // (ex.: notas BM&F em que a folha 1 traz só os negócios e a folha 2
+    // só o resumo). Antes de descartar as folhas sem negócio, repassa o
+    // resumo financeiro delas para a folha da mesma nota que ficar.
+    const porChave = new Map();
+    for(const r of brutos){
+      const chave = chaveNota(r.cpf, r.numNota, r.corretora);
+      if(!chave) continue;
+      if(!porChave.has(chave)) porChave.set(chave, []);
+      porChave.get(chave).push(r);
+    }
+    for(const grupo of porChave.values()){
+      if(grupo.length < 2) continue;
+      const alvo = grupo.find(r => r.negocios.length > 0) || grupo[0];
+      for(const r of grupo){
+        if(r === alvo || !r.financeiro || !alvo.financeiro) continue;
+        for(const k of Object.keys(alvo.financeiro)){
+          if(!alvo.financeiro[k] && r.financeiro[k]) alvo.financeiro[k] = r.financeiro[k];
+        }
+      }
+    }
+    // Combinar os negócios
+    const resultados = brutos.filter(r => r.negocios.length > 0);
     if(resultados.length > 0){
       // Retornar array de resultados em vez de um único
       return { _multiNota: true, resultados };
