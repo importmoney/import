@@ -4063,6 +4063,10 @@ function splitNotasPDF(texto){
 }
 
 function parsearSecaoNota(texto){
+  // Detectar se é formato Nubank nativo (Nu Investimentos + "Número da nota")
+  // — calculado antes da normalização abaixo pois ela usa esse resultado.
+  const isFormatoNubank = /Nu\s*Investimentos/i.test(texto) && /N[úu]mero\s+da\s+nota/i.test(texto);
+
   // Normalizar quebras de linha dentro de frases-chave do cabeçalho
   const txt = texto
     .replace(/Nr\.\s*\n\s*nota/gi,        'Nr. nota')
@@ -4084,16 +4088,16 @@ function parsearSecaoNota(texto){
     // Nubank: "Número da nota\n271149" → normalizar para "Nr. nota 271149"
     .replace(/N[úu]mero\s+da\s+nota\s*\n\s*(\d{5,12})/gi, 'Nr. nota $1')
     .replace(/N[úu]mero\s+da\s+nota\s+(\d{5,12})/gi, 'Nr. nota $1')
-    // Nubank formato nativo: preços vêm como "R$ 11,22" — remover R$ para o parser de números
-    .replace(/R\$\s*/g, '')
+    // Nubank formato nativo: preços vêm como "R$ 11,22" — remover R$ para o
+    // parser de números. Restrito ao formato Nubank: em notas SINACOR comuns
+    // o "R$" é o que marca onde fica o valor de campos como "IRRF Day Trade:
+    // Base R$ X Projeção R$ Y" — removê-lo ali quebra a extração desse valor.
+    .replace(/R\$\s*/g, isFormatoNubank ? '' : 'R$ ')
     // BDRs: normalizar "DRN ED" → "DRN" para melhor match no NOME_TICKER
     .replace(/\bDRN\s+ED\b/gi, 'DRN')
     .replace(/\bDR\s+ED\b/gi,  'DRN')
     // Folha da nota pode vir com o número na linha seguinte: "Folha\n2"
     .replace(/(Folha)\s*\n\s*(\d{1,3})\b/gi, '$1 $2');
-
-  // Detectar se é formato Nubank nativo (Nu Investimentos + "Número da nota")
-  const isFormatoNubank = /Nu\s*Investimentos/i.test(texto) && /N[úu]mero\s+da\s+nota/i.test(texto);
 
   // Extrair número da nota — SINACOR: "Nr. nota XXXXX", BTG/Inter: "Nota de Corretagem Nº XXXXX"
   // Notas de Day Trade/BM&F numeram o "Nr. nota" com ponto (ex.: "679.853"),
@@ -4806,6 +4810,11 @@ function parsearSecaoNota(texto){
     // Obs: D=Day Trade, D#=DT+Negócio Direto, #=Negócio Direto, 2=Corretora
     //      H=Home Broker, P=Carteira Própria, 8=Institucional, A=Posição Futuro
     //      T=Liq.Bruto, B=Debêntures, F=Cobertura, @#, @ já tratados antes
+    // Capturar o marcador antes de removê-lo — "D" na coluna Obs.(*) é o que a
+    // própria nota usa para dizer que aquela operação específica é Day Trade,
+    // mais confiável que inferir por compra+venda do mesmo ativo no mesmo dia.
+    const obsMarkerM = parteNome.match(/\s+(D#|D|2#?|8#?|H#?|P#?|T#?|A#?|F#?|B#?)\s*$/);
+    const obsDayTrade = !!(obsMarkerM && /^D#?$/.test(obsMarkerM[1]));
     // Remover marcador isolado no FINAL de parteNome (antes dos números)
     const parteNomeLimpo = parteNome.replace(/\s+(?:D#|D|2#?|8#?|H#?|P#?|T#?|A#?|F#?|B#?)\s*$/, '').trim();
     const tickerExplM=parteNomeLimpo.match(/\b([A-Z]{4}\d{1,2}(?:11)?)\b/);
@@ -5039,7 +5048,7 @@ function parsearSecaoNota(texto){
     // IPO importado de nota entra como Compra, com nota informativa
     const tipoLinha = isIPOLinha ? 'Compra' : (cv==='C'?'Compra':'Venda');
     const notaLinha = isIPOLinha ? (numNota ? `IPO · Nota ${numNota}` : 'IPO (Oferta Pública)') : numNota;
-    negocios.push({tipo:tipoLinha,ticker:tickerFinal,qtd,preco,data:dataPregao,nota:notaLinha,corretora,_nomeOriginal:parteNome.trim(),_sel:true,_mercado:mercado});
+    negocios.push({tipo:tipoLinha,ticker:tickerFinal,qtd,preco,data:dataPregao,nota:notaLinha,corretora,_nomeOriginal:parteNome.trim(),_sel:true,_mercado:mercado,_obsDayTrade:obsDayTrade});
   }
   // ── Parser multi-linha (formato 2021: cada campo numa linha separada) ─────
   // Padrão detectado:
@@ -5227,10 +5236,14 @@ function parsearSecaoNota(texto){
              || txt.match(/I\.?R\.?R\.?F\.?\s+s[/\/]\s*opera[çc][oõ]es.+?([\d]+[.,][\d]{2})\s*\n/i);
   const irrf = irrfM ? parseValNota(irrfM[1]) : 0;
 
-  // IRRF DT: "IRRF Day Trade: Base R$ 15,91 Projeção R$ 0,00" ou, no formato
-  // de notas BM&F/Day Trade (colunas "IRRF | IRRF Day Trade (proj.) | ..."
-  // com os valores na linha seguinte), pega a 2ª coluna dessa linha.
-  const irrfDTm = txt.match(/IRRF\s+Day\s+Trade[^R]*R\$\s*([\d.,]+)/i);
+  // IRRF DT: "IRRF Day Trade: Base R$ 15,91 Projeção R$ 0,00" — o valor
+  // retido é o da "Projeção" (a "Base" é só o lucro do day trade usado para
+  // calcular esse valor, 1% dela), então a busca é ancorada nessa palavra;
+  // sem isso, o primeiro "R$" da frase pega o valor errado (a Base). Ou, no
+  // formato de notas BM&F/Day Trade (colunas "IRRF | IRRF Day Trade (proj.)
+  // | ..." com os valores na linha seguinte), pega a 2ª coluna dessa linha.
+  const irrfDTm = txt.match(/IRRF\s+Day\s+Trade[^\n]*?Proje[çc][aã]o[^\n\d]*R\$\s*([\d.,]+)/i)
+                || txt.match(/IRRF\s+Day\s+Trade[^R]*R\$\s*([\d.,]+)/i);
   const irrfDT  = irrfDTm ? parseValNota(irrfDTm[1])
                 : extrairValorLinhaSeguinte('IRRF\\s+IRRF\\s+Day\\s+Trade', 1).valor;
 
@@ -12507,12 +12520,24 @@ function calcularIRMesPuro(anoMes, prejSTAntes, prejDTAntes, prejFIIAntes) {
     if(!pmAcum[tk]) pmAcum[tk]={qtd:0,pmAdj:0};
     const p=pmAcum[tk];
     if(op.tipo==='Compra'||op.tipo==='IPO'){const nt=p.pmAdj*p.qtd+ +op.preco* +op.qtd;p.qtd+= +op.qtd;p.pmAdj=p.qtd>0?nt/p.qtd:0;}
-    else if(op.tipo==='Venda'){p.qtd-= +op.qtd;if(p.qtd<=0){p.qtd=0;p.pmAdj=0;}}
+    // Não zerar pmAdj aqui pelo mesmo motivo do loop do mês abaixo: um dia
+    // com mais venda que compra (comum em Day Trade) não deve zerar o custo
+    // médio carregado para os meses seguintes.
+    else if(op.tipo==='Venda'){p.qtd-= +op.qtd;if(p.qtd<=0){p.qtd=0;}}
     else if(op.tipo==='Provento'||op.tipo==='JCP'){const vpa=p.qtd>0?(+op.preco* +op.qtd)/p.qtd:0;p.pmAdj=Math.max(0,p.pmAdj-vpa);}
   }
 
-  // ── Detectar Day Trade: mesma data + mesmo ticker + Compra E Venda ──
-  // Agrupar vendas e compras por data+ticker no mês
+  // ── Detectar Day Trade ───────────────────────────────────────────
+  // Fonte principal: o marcador "D" da coluna Obs.(*) impresso na própria
+  // nota (op._obsDayTrade) — é a B3/corretora quem decide o que é Day Trade,
+  // então usar o que ela já marcou é mais confiável do que inferir. Isso
+  // também evita falso positivo quando há compra E venda do mesmo ativo no
+  // mesmo dia sem nenhuma delas ser Day Trade de fato (ex.: transferência de
+  // custódia) e falso negativo em formatos onde a inferência por quantidade
+  // falharia.
+  // Fallback (ops sem essa informação — import antigo, CSV, corretoras cujo
+  // parser ainda não captura o Obs.(*)): mesma data + mesmo ticker com
+  // compra E venda no dia = Day Trade.
   const opsDoMes = [...ops].filter(o=>o.data>=inicioMes&&o.data<=fimMes).sort((a,b)=>new Date(a.data)-new Date(b.data));
   const dtChave = new Set(); // "YYYY-MM-DD|TICKER" com C e V no mesmo dia = DT
   const comprasDia  = {}; // "data|tk" -> qtd comprada
@@ -12554,7 +12579,7 @@ function calcularIRMesPuro(anoMes, prejSTAntes, prejDTAntes, prejFIIAntes) {
       const ganho  = (+op.preco - pm) * +op.qtd - (+op.taxa||0);
       const vlrOp  = +op.preco * +op.qtd;
       const chave  = `${op.data}|${tk}`;
-      const isDT   = dtChave.has(chave) && !optTk.has(tk);
+      const isDT   = !optTk.has(tk) && (op._obsDayTrade !== undefined ? op._obsDayTrade : dtChave.has(chave));
       const isFII  = isFIItk(tk);
       const isOpt  = optTk.has(tk);
 
@@ -12583,7 +12608,17 @@ function calcularIRMesPuro(anoMes, prejSTAntes, prejDTAntes, prejFIIAntes) {
         irrfST += vlrOp * 0.00005;
       }
       p.qtd -= +op.qtd;
-      if(p.qtd <= 0){p.qtd=0; p.pmAdj=0;}
+      // Zerar a quantidade quando a posição se encerra, mas NUNCA o preço
+      // médio: se no mesmo dia a soma vendida passar da soma comprada
+      // (comum em Day Trade — a nota marca "D" em todas as execuções do
+      // ativo naquele dia, e a ordem de processamento aqui nem sempre é a
+      // ordem real de execução), zerar o preço médio faz as vendas
+      // seguintes contarem o valor de venda inteiro como lucro (como se o
+      // custo fosse zero), inflando o resultado do dia. Mantendo o último
+      // preço médio conhecido, o "excedente" ainda usa um custo razoável —
+      // e uma compra nova depois recalcula o preço médio do zero normalmente,
+      // já que uma posição em qtd=0 não pesa nada na média ponderada.
+      if(p.qtd <= 0){p.qtd=0;}
     } else if(op.tipo==='Provento'||op.tipo==='JCP'){
       const vpa = p.qtd>0 ? (+op.preco * +op.qtd)/p.qtd : 0;
       p.pmAdj = Math.max(0, p.pmAdj - vpa);
@@ -13553,7 +13588,15 @@ function calcIR(ano) {
       } else if(op.tipo==='Venda'){
         // Venda: reduz posição, PM permanece para o restante
         p.qtd -= +op.qtd;
-        if(p.qtd<=0){p.qtd=0;p.pmAdj=0;}
+        // Zerar pmAdj só faz sentido numa posição genuinamente encerrada.
+        // Para ações, se sobrar negativo (comum em Day Trade, quando o
+        // vendido no dia passa do comprado), zerar o PM faria as vendas
+        // seguintes daquele dia contarem o preço cheio como lucro — por
+        // isso só reseta se realmente zerou por cima (nunca deixa negativo
+        // "sujar" o PM). Para opções, negativo é venda a descoberto de
+        // verdade (operação vendida sem tê-la comprado antes) — mantém o
+        // reset, que já é como este código representa esse estado.
+        if(p.qtd<=0){p.qtd=0; if(optTk.has(tk)) p.pmAdj=0;}
       } else if(op.tipo==='Desdobramento'){
         const fator=+op.qtd;
         if(fator>1){p.qtd=Math.round(p.qtd*fator);p.pmAdj=p.qtd>0?p.pmAdj/fator:0;}
@@ -13701,7 +13744,11 @@ function calcIR(ano) {
         if(!pmMes[tk]) pmMes[tk]={qtd:0,pmAdj:0};
         const p=pmMes[tk];
         if(op.tipo==='Compra'||op.tipo==='IPO'||op.tipo==='Bonificação'){const nt=p.pmAdj*p.qtd+ +op.preco* +op.qtd;p.qtd+= +op.qtd;p.pmAdj=p.qtd>0?nt/p.qtd:0;}
-        else if(op.tipo==='Venda'){p.qtd-= +op.qtd;if(p.qtd<=0){p.qtd=0;p.pmAdj=0;}}
+        // Não zerar pmAdj para ações quando sobra negativo (Day Trade com
+        // vendido > comprado no dia); zerar aqui infla vendas seguintes do
+        // mesmo dia. Para opções, negativo = venda a descoberto de verdade,
+        // mantém o reset (comportamento já existente).
+        else if(op.tipo==='Venda'){p.qtd-= +op.qtd;if(p.qtd<=0){p.qtd=0;if(optTk.has(tk))p.pmAdj=0;}}
         else if(op.tipo==='Desdobramento'){const f=+op.qtd;if(f>1){p.qtd=Math.round(p.qtd*f);p.pmAdj=p.qtd>0?p.pmAdj/f:0;}}
         else if(op.tipo==='Grupamento'){const f=+op.qtd;if(f>1){p.qtd=Math.round(p.qtd/f);p.pmAdj=p.qtd>0?p.pmAdj*f:0;}}
       }
@@ -13753,7 +13800,9 @@ function calcIR(ano) {
         if(!pmFII[tk]) pmFII[tk]={qtd:0,pmAdj:0};
         const p=pmFII[tk];
         if(op.tipo==='Compra'||op.tipo==='IPO'||op.tipo==='Bonificação'){const nt=p.pmAdj*p.qtd+ +op.preco* +op.qtd;p.qtd+= +op.qtd;p.pmAdj=p.qtd>0?nt/p.qtd:0;}
-        else if(op.tipo==='Venda'){p.qtd-= +op.qtd;if(p.qtd<=0){p.qtd=0;p.pmAdj=0;}}
+        // FII não tem opção — sem exceção aqui: nunca zerar pmAdj por causa
+        // de sobra negativa (mesmo motivo do bloco de ações acima).
+        else if(op.tipo==='Venda'){p.qtd-= +op.qtd;if(p.qtd<=0){p.qtd=0;}}
         else if(op.tipo==='Desdobramento'){const f=+op.qtd;if(f>1){p.qtd=Math.round(p.qtd*f);p.pmAdj=p.qtd>0?p.pmAdj/f:0;}}
         else if(op.tipo==='Grupamento'){const f=+op.qtd;if(f>1){p.qtd=Math.round(p.qtd/f);p.pmAdj=p.qtd>0?p.pmAdj*f:0;}}
       }
@@ -13776,7 +13825,7 @@ function calcIR(ano) {
           const nt=p.pmAdj*p.qtd+ +op.preco* +op.qtd;p.qtd+= +op.qtd;p.pmAdj=p.qtd>0?nt/p.qtd:0;
         } else if(op.tipo==='Venda'){
           resLiq+=(+op.preco-p.pmAdj)* +op.qtd-(+op.taxa||0);
-          p.qtd-= +op.qtd;if(p.qtd<=0){p.qtd=0;p.pmAdj=0;}
+          p.qtd-= +op.qtd;if(p.qtd<=0){p.qtd=0;}
         } else if(op.tipo==='Desdobramento'){
           const f=+op.qtd;if(f>1){p.qtd=Math.round(p.qtd*f);p.pmAdj=p.qtd>0?p.pmAdj/f:0;}
         } else if(op.tipo==='Grupamento'){
@@ -13825,9 +13874,10 @@ function calcIR(ano) {
           p.qtd   += +op.qtd;
           p.pmAdj  = p.qtd>0 ? nt/p.qtd : 0;
         } else if(op.tipo==='Venda'){
-          // Venda parcial: PM permanece, só reduz qtd
+          // Venda parcial: PM permanece, só reduz qtd. Não zerar pmAdj
+          // (FII não tem opção/venda a descoberto a preservar aqui).
           p.qtd = Math.max(0, p.qtd - +op.qtd);
-          if(p.qtd <= 0){ p.qtd=0; p.pmAdj=0; }
+          if(p.qtd <= 0){ p.qtd=0; }
         } else if(op.tipo==='Desdobramento'){
           const f=+op.qtd; if(f>1){p.qtd=Math.round(p.qtd*f); p.pmAdj=p.qtd>0?p.pmAdj/f:0;}
         } else if(op.tipo==='Grupamento'){
@@ -13876,7 +13926,7 @@ function calcIR(ano) {
         resLiq     += g;
         vendaBruta += +op.preco * +op.qtd;
         p.qtd = Math.max(0, p.qtd - +op.qtd);
-        if(p.qtd <= 0){ p.qtd=0; p.pmAdj=0; }
+        if(p.qtd <= 0){ p.qtd=0; }
       } else if(op.tipo==='Desdobramento'){
         const f=+op.qtd; if(f>1){p.qtd=Math.round(p.qtd*f); p.pmAdj=p.qtd>0?p.pmAdj/f:0;}
       } else if(op.tipo==='Grupamento'){
