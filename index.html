@@ -2390,22 +2390,37 @@ function resolverDuplicidadeNota(p){
     p.status = p.negocios.length ? 'ok' : 'sem_negocio';
     return;
   }
-  // Contagem por assinatura (não um Set): uma nota pode ter várias execuções
-  // parciais idênticas (mesmo ticker/qtd/preço no mesmo dia — comum quando uma
-  // ordem grande é liquidada aos poucos). Um Set colapsaria todas elas numa
-  // única entrada e descartaria como "duplicata" as execuções genuinamente
-  // novas que só coincidem em ticker/qtd/preço com as já salvas.
+  // Preferir o número da folha (impresso na própria nota) para decidir o que
+  // é novo: duas folhas diferentes da mesma nota podem conter execuções
+  // parciais idênticas em ticker/qtd/preço (ex.: duas vendas de "200 TAESA
+  // @ 11,45", uma em cada folha) — nesse caso, comparar só pelo conteúdo
+  // (assinatura) faz a folha nova parecer "toda duplicada" e ela é
+  // descartada por inteiro. Com o número da folha, a checagem é exata: se
+  // nenhuma operação já salva veio dessa folha, todos os negócios dela são
+  // novos, não importa se o conteúdo coincide com o de outra folha.
+  const folhasExistentes = new Set(
+    opsExistentes.map(o => o._folhaNum).filter(f => f != null)
+  );
+  const comFolhaConhecida = p.negocios.filter(n => n._folhaNum != null);
+  const semFolhaConhecida = p.negocios.filter(n => n._folhaNum == null);
+  const novosComFolha = comFolhaConhecida.filter(n => !folhasExistentes.has(n._folhaNum));
+
+  // Fallback por contagem de assinatura (não um Set) para o que não tem
+  // número de folha identificado (outros formatos de corretora). Um Set
+  // colapsaria execuções parciais idênticas numa única entrada e descartaria
+  // como "duplicata" as que são genuinamente novas.
   const contagemExistente = new Map();
   opsExistentes.forEach(o => {
     const s = assinaturaNegocio(o);
     contagemExistente.set(s, (contagemExistente.get(s)||0) + 1);
   });
-  const negociosNovos = p.negocios.filter(n => {
+  const novosSemFolha = semFolhaConhecida.filter(n => {
     const s = assinaturaNegocio(n);
     const restante = contagemExistente.get(s) || 0;
     if(restante > 0){ contagemExistente.set(s, restante - 1); return false; }
     return true;
   });
+  const negociosNovos = [...novosComFolha, ...novosSemFolha];
   if(!negociosNovos.length){
     p.status = 'duplicada';
     p.negocios = [];
@@ -4073,7 +4088,9 @@ function parsearSecaoNota(texto){
     .replace(/R\$\s*/g, '')
     // BDRs: normalizar "DRN ED" → "DRN" para melhor match no NOME_TICKER
     .replace(/\bDRN\s+ED\b/gi, 'DRN')
-    .replace(/\bDR\s+ED\b/gi,  'DRN');
+    .replace(/\bDR\s+ED\b/gi,  'DRN')
+    // Folha da nota pode vir com o número na linha seguinte: "Folha\n2"
+    .replace(/(Folha)\s*\n\s*(\d{1,3})\b/gi, '$1 $2');
 
   // Detectar se é formato Nubank nativo (Nu Investimentos + "Número da nota")
   const isFormatoNubank = /Nu\s*Investimentos/i.test(texto) && /N[úu]mero\s+da\s+nota/i.test(texto);
@@ -4087,6 +4104,13 @@ function parsearSecaoNota(texto){
     .concat([...txt.matchAll(new RegExp('N[°o]?\\.?\\s*(?:da\\s+)?(?:nota|corretagem)\\s*[:\\s]?\\s*' + NUM_NOTA, 'gi'))])
     .concat([...txt.matchAll(/\b(\d{7,12})\s+(?:Folha|P[áa]gina)\s+\d/gi)]);
   const numNota = (notaMs.length ? (notaMs[0][1] || notaMs[0][2] || notaMs[0][3] || '') : '').replace(/\./g,'');
+
+  // Extrair número da folha (cabeçalho SINACOR: "Folha N"). Duas execuções
+  // parciais em folhas diferentes podem ter ticker/qtd/preço idênticos — só
+  // o número da folha (impresso na própria nota) distingue com certeza "esta
+  // folha já foi importada" de "é uma folha nova que só coincide no conteúdo".
+  const folhaM = txt.match(/\bFolha\s+(\d{1,3})\b/i);
+  const folhaNum = folhaM ? parseInt(folhaM[1], 10) : null;
 
   // Extrair data — SINACOR: "Data pregão DD/MM/AAAA"
   // BTG/Inter: "Data do Pregão DD/MM/AAAA" | Nubank: "Data de Negociação DD/MM/AAAA"
@@ -5258,7 +5282,12 @@ function parsearSecaoNota(texto){
     despesasOperacao,
   };
 
-  return {dataPregao, numNota, corretora, negocios, cpf, nomeTitular, financeiro, _formatoNubank: isFormatoNubank||false};
+  // Cada negócio carrega consigo o número da folha de onde veio — sobrevive a
+  // qualquer merge/concatenação posterior de arrays de negócios (PDF único
+  // com várias folhas, ou folhas importadas em arquivos separados).
+  if(folhaNum != null) negocios.forEach(n => { n._folhaNum = folhaNum; });
+
+  return {dataPregao, numNota, corretora, negocios, cpf, nomeTitular, financeiro, folhaNum, _formatoNubank: isFormatoNubank||false};
 }
 
 // parsearNota — mantido para compatibilidade (modo arquivo único legado)
