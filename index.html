@@ -2363,6 +2363,71 @@ function chaveNota(cpf, numNota, corretora){
   return '';
 }
 
+// Assinatura de uma operação individual, usada para saber se ela já foi
+// salva antes (duplicata real) mesmo quando a nota inteira compartilha o
+// mesmo Nr. nota — necessário para notas com mais de uma folha importadas
+// em arquivos/lotes separados, onde cada folha tem seu próprio conjunto de
+// negócios sob o mesmo número de nota.
+function assinaturaNegocio(n){
+  return [n.data, (n.ticker||'').toUpperCase(), n.tipo, n.qtd, n.preco].join('|');
+}
+
+// Decide se uma nota recém-parseada (p) é uma duplicata real de uma nota já
+// salva (ops) ou se é uma folha adicional da mesma nota (Nr. nota igual, mas
+// com negócios diferentes — comum quando cada folha é importada em momentos
+// separados). Numa duplicata real, todos os negócios já estão salvos: a nota
+// é descartada. Numa folha adicional, só os negócios realmente novos entram,
+// e o resumo financeiro que estiver faltando na nota já salva (IRRF,
+// Despesas da Operação etc.) é completado com os dados desta folha.
+function resolverDuplicidadeNota(p){
+  const chaveP = chaveNota(p.cpf, p.numNota, p.corretora);
+  if(!chaveP){
+    p.status = p.negocios.length ? 'ok' : 'sem_negocio';
+    return;
+  }
+  const opsExistentes = ops.filter(o => chaveNota(o._cpf, o.nota, o.corretora) === chaveP);
+  if(!opsExistentes.length){
+    p.status = p.negocios.length ? 'ok' : 'sem_negocio';
+    return;
+  }
+  // Contagem por assinatura (não um Set): uma nota pode ter várias execuções
+  // parciais idênticas (mesmo ticker/qtd/preço no mesmo dia — comum quando uma
+  // ordem grande é liquidada aos poucos). Um Set colapsaria todas elas numa
+  // única entrada e descartaria como "duplicata" as execuções genuinamente
+  // novas que só coincidem em ticker/qtd/preço com as já salvas.
+  const contagemExistente = new Map();
+  opsExistentes.forEach(o => {
+    const s = assinaturaNegocio(o);
+    contagemExistente.set(s, (contagemExistente.get(s)||0) + 1);
+  });
+  const negociosNovos = p.negocios.filter(n => {
+    const s = assinaturaNegocio(n);
+    const restante = contagemExistente.get(s) || 0;
+    if(restante > 0){ contagemExistente.set(s, restante - 1); return false; }
+    return true;
+  });
+  if(!negociosNovos.length){
+    p.status = 'duplicada';
+    p.negocios = [];
+    return;
+  }
+  if(p.financeiro){
+    opsExistentes.forEach(o => {
+      if(!o._financeiro){ o._financeiro = p.financeiro; return; }
+      for(const k of Object.keys(p.financeiro)){
+        if(!o._financeiro[k] && p.financeiro[k]) o._financeiro[k] = p.financeiro[k];
+      }
+    });
+  }
+  // Atualiza a contagem de folhas da nota (badge "N folhas" na aba Notas
+  // Importadas), já que esta é uma folha adicional importada depois
+  const folhaAtual = Math.max(...opsExistentes.map(o=>o._folhas||1)) + 1;
+  opsExistentes.forEach(o => { o._folhas = folhaAtual; });
+  negociosNovos.forEach(n => { n._folhas = folhaAtual; });
+  p.negocios = negociosNovos;
+  p.status = 'ok';
+}
+
 // ═══════════════════════════════════════════════════════
 // SISTEMA DE DESFAZER (UNDO)
 // Cada mutação chama snapshot() antes de agir.
@@ -3772,13 +3837,11 @@ async function _executarProcessNota(files){
             }
           }
           if(p.status!=='pessoa_errada'){
-            // Checar duplicata só contra ops JÁ SALVAS (não contra o lote atual)
-            const chaveP = chaveNota(p.cpf, p.numNota, p.corretora);
-            if(chaveP && ops.some(o=> chaveNota(o._cpf, o.nota, o.corretora) === chaveP )){
-              p.status='duplicada'; p.negocios=[];
-            } else {
-              p.status=p.negocios.length?'ok':'sem_negocio';
-            }
+            // Checar duplicata só contra ops JÁ SALVAS (não contra o lote atual).
+            // Compara negócio a negócio: se o Nr. nota já existir mas os
+            // negócios forem diferentes, é uma folha adicional da mesma nota
+            // (importada num lote anterior), não uma duplicata real.
+            resolverDuplicidadeNota(p);
           }
           resultados.push(p);
           p.negocios.forEach(n=>{n._cpf=p.cpf||'';n._financeiro=p.financeiro||null;notaPendente.push(n);});
@@ -3807,16 +3870,28 @@ async function _executarProcessNota(files){
           // Mesclar negócios — folha adicional da mesma nota (PDF separado por folha)
           jaNoLote.negocios.push(...parsed.negocios);
           jaNoLote._folhas = (jaNoLote._folhas||1) + 1;
+          // Completar o resumo financeiro que ainda faltar (ex.: IRRF/Despesas
+          // que só apareciam na folha que está sendo mesclada agora)
+          if(jaNoLote.financeiro && parsed.financeiro){
+            for(const k of Object.keys(jaNoLote.financeiro)){
+              if(!jaNoLote.financeiro[k] && parsed.financeiro[k]) jaNoLote.financeiro[k] = parsed.financeiro[k];
+            }
+          } else if(!jaNoLote.financeiro && parsed.financeiro){
+            jaNoLote.financeiro = parsed.financeiro;
+          }
           // Propagar contagem de folhas para o primeiro negócio do grupo (usado no preview)
           const primeiroN = notaPendente.find(n=>(n.nota||'').trim() === (parsed.numNota||'').trim());
           if(primeiroN) primeiroN._folhas = jaNoLote._folhas;
-          parsed.negocios.forEach(n=>{n._cpf=parsed.cpf||'';n._financeiro=parsed.financeiro||null;notaPendente.push(n);});
+          // Usa o financeiro já mesclado de jaNoLote (referência compartilhada),
+          // não o financeiro isolado desta folha, para todos os negócios ficarem
+          // com o mesmo resumo financeiro completo da nota.
+          parsed.negocios.forEach(n=>{n._cpf=parsed.cpf||'';n._financeiro=jaNoLote.financeiro||null;notaPendente.push(n);});
           continue; // Não adicionar como resultado separado
-        } else if(chaveAtual && ops.some(o=> chaveNota(o._cpf, o.nota, o.corretora) === chaveAtual )){
-          parsed.status='duplicada';
-          parsed.negocios=[];
         } else {
-          parsed.status=parsed.negocios.length?'ok':'sem_negocio';
+          // Checar duplicata contra ops JÁ SALVAS (nota importada num lote
+          // anterior). Compara negócio a negócio: Nr. nota igual mas negócios
+          // diferentes = folha adicional da mesma nota, não duplicata real.
+          resolverDuplicidadeNota(parsed);
         }
       }
       resultados.push(parsed);
@@ -5354,12 +5429,13 @@ function renderPreviewNota(data,nota,corretora,negocios){
 function confirmarNota(){
   const sel=notaPendente.filter(n=>n._sel);
   if(!sel.length){toast('Selecione ao menos uma operação.','warn');return;}
-  // Checar duplicidade por nota (cada numNota único)
+  // A duplicidade real (negócio a negócio) já foi resolvida antes de chegar
+  // aqui, em resolverDuplicidadeNota() — chamada durante o parse do arquivo.
+  // Não checar de novo pelo nº da nota isoladamente: uma nota com mais de
+  // uma folha reaproveita o mesmo nº em folhas diferentes e legitimamente
+  // novas, então bloquear por nº de nota já visto descartaria folhas
+  // adicionais válidas.
   const notas=[...new Set(sel.map(n=>(n.nota||'').trim()).filter(Boolean))];
-  const duplicadas=notas.filter(nr=>ops.some(o=>String(o.nota||'').trim()===nr)); // legado
-  if(duplicadas.length){
-    toast(`Nota${duplicadas.length>1?'s':''} já importada${duplicadas.length>1?'s':''}: ${duplicadas.join(', ')}. Desmarque-as.`,'error');return;
-  }
   const notasLabel=notas.length?notas.join(', '):`${sel.length} ops`;
   snapshot(`Importar nota${notas.length>1?'s':''} ${notasLabel}`);
   // Calcular número de folhas por nota (para exibir na aba Notas Importadas)
