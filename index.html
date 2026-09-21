@@ -5956,6 +5956,12 @@ function exportarCSVPosicoes(){
   a.click();
   toast(`${ativos.length} posições exportadas!`);
 }
+// Proxy próprio (Val Town) para as chamadas à Yahoo Finance — mais rápido e
+// confiável que os proxies CORS públicos (allorigins/corsproxy.io), que
+// seguem como fallback caso ele fique indisponível. Mesmo worker já usado
+// pela calculadora de rentabilidade/dividendos (yahoo-finance-proxy-valtown.ts).
+const YF_PROXY_VALTOWN = 'https://importmoney--ab287968b5e711f190691607ee4eb77e.web.val.run';
+
 const RENT_CACHE_KEY = 'rent_indices_v1';
 let rentCache = JSON.parse(localStorage.getItem(RENT_CACHE_KEY) || '{}');
 // { ibov: [{date,close},...], updatedAt: ts }
@@ -6120,6 +6126,7 @@ async function buscarIbovespa(anos) {
   const url = `https://query1.finance.yahoo.com/v8/finance/chart/%5EBVSP?interval=1mo&period1=${p1}&period2=${p2}`;
   const url2 = url.replace('query1', 'query2');
   const proxies = [
+    async () => { const r = await fetch(`${YF_PROXY_VALTOWN}/?url=${encodeURIComponent(url)}`, {signal: AbortSignal.timeout(8000)}); if(!r.ok) throw 0; return await r.json(); },
     async () => { const r = await fetch(`https://api.allorigins.win/get?url=${encodeURIComponent(url)}`, {signal: AbortSignal.timeout(10000)}); if(!r.ok) throw 0; return JSON.parse((await r.json()).contents); },
     async () => { const r = await fetch(`https://corsproxy.io/?${encodeURIComponent(url)}`, {signal: AbortSignal.timeout(10000)}); if(!r.ok) throw 0; return await r.json(); },
     async () => { const r = await fetch(url, {signal: AbortSignal.timeout(10000)}); if(!r.ok) throw 0; return await r.json(); },
@@ -6930,6 +6937,7 @@ async function simFetchCotacao(tk){
   const u1=`https://query1.finance.yahoo.com/v8/finance/chart/${tk}.SA?interval=1d&range=1d`;
   const u2=`https://query2.finance.yahoo.com/v8/finance/chart/${tk}.SA?interval=1d&range=1d`;
   const strats=[
+    async()=>{const r=await fetch(`${YF_PROXY_VALTOWN}/?url=${encodeURIComponent(u1)}`,{signal:AbortSignal.timeout(6000)});if(!r.ok)throw 0;return await r.json();},
     async()=>{const r=await fetch(`https://api.allorigins.win/get?url=${encodeURIComponent(u1)}`,{signal:AbortSignal.timeout(8000)});if(!r.ok)throw 0;return JSON.parse((await r.json()).contents);},
     async()=>{const r=await fetch(`https://corsproxy.io/?${encodeURIComponent(u1)}`,{signal:AbortSignal.timeout(8000)});if(!r.ok)throw 0;return await r.json();},
     async()=>{const r=await fetch(u1,{signal:AbortSignal.timeout(8000)});if(!r.ok)throw 0;return await r.json();},
@@ -8118,6 +8126,12 @@ async function fetchDividendInfo(tk) {
   const summaryUrl = (q) =>
     `https://${q}.finance.yahoo.com/v10/finance/quoteSummary/${tk}.SA?modules=calendarEvents%2CsummaryDetail%2CassetProfile`;
 
+  const fetch8valtown = async (q) => {
+    const url = chartUrl(q);
+    const r = await fetch(`${YF_PROXY_VALTOWN}/?url=${encodeURIComponent(url)}`, {signal: AbortSignal.timeout(8000)});
+    if(!r.ok) throw 0;
+    return await r.json();
+  };
   const fetch8 = async (q) => {
     const url = chartUrl(q);
     const r = await fetch(`https://api.allorigins.win/get?url=${encodeURIComponent(url)}`, {signal: AbortSignal.timeout(10000)});
@@ -8126,6 +8140,12 @@ async function fetchDividendInfo(tk) {
   };
   const fetch8direct = async (q) => {
     const r = await fetch(chartUrl(q), {signal: AbortSignal.timeout(10000)});
+    if(!r.ok) throw 0;
+    return await r.json();
+  };
+  const fetch10valtown = async (q) => {
+    const url = summaryUrl(q);
+    const r = await fetch(`${YF_PROXY_VALTOWN}/?url=${encodeURIComponent(url)}`, {signal: AbortSignal.timeout(8000)});
     if(!r.ok) throw 0;
     return await r.json();
   };
@@ -8149,13 +8169,13 @@ async function fetchDividendInfo(tk) {
 
   // Tentar buscar dados de chart (dividendos históricos + futuros)
   let chartData = null;
-  for (const fn of [()=>fetch8('query1'), ()=>fetch8('query2'), ()=>fetch8direct('query1'), ()=>fetch8direct('query2'), ()=>fetchCorsproxy('query1')]) {
+  for (const fn of [()=>fetch8valtown('query1'), ()=>fetch8('query1'), ()=>fetch8('query2'), ()=>fetch8direct('query1'), ()=>fetch8direct('query2'), ()=>fetchCorsproxy('query1')]) {
     try { chartData = await fn(); break; } catch(e) {}
   }
 
   // Tentar buscar dados de summary (nome, yield, exDate declarado)
   let summaryData = null;
-  for (const fn of [()=>fetch10('query1'), ()=>fetch10('query2'), ()=>fetch10direct('query1'), ()=>fetch10direct('query2')]) {
+  for (const fn of [()=>fetch10valtown('query1'), ()=>fetch10('query1'), ()=>fetch10('query2'), ()=>fetch10direct('query1'), ()=>fetch10direct('query2')]) {
     try { summaryData = await fn(); break; } catch(e) {}
   }
 
@@ -8832,12 +8852,20 @@ async function verificarTickerYahoo(tkAntigo, tkNovo) {
   const check = async (tk) => {
     const url = `https://query1.finance.yahoo.com/v8/finance/chart/${tk}.SA?interval=1d&range=5d`;
     try {
-      const r = await fetch(`https://api.allorigins.win/get?url=${encodeURIComponent(url)}`, {signal: AbortSignal.timeout(8000)});
-      if(!r.ok) return false;
-      const d = JSON.parse((await r.json()).contents);
+      const r = await fetch(`${YF_PROXY_VALTOWN}/?url=${encodeURIComponent(url)}`, {signal: AbortSignal.timeout(6000)});
+      if(!r.ok) throw 0;
+      const d = await r.json();
       const meta = d?.chart?.result?.[0]?.meta;
       return !!(meta && (meta.regularMarketPrice || meta.previousClose));
-    } catch { return false; }
+    } catch {
+      try {
+        const r = await fetch(`https://api.allorigins.win/get?url=${encodeURIComponent(url)}`, {signal: AbortSignal.timeout(8000)});
+        if(!r.ok) return false;
+        const d = JSON.parse((await r.json()).contents);
+        const meta = d?.chart?.result?.[0]?.meta;
+        return !!(meta && (meta.regularMarketPrice || meta.previousClose));
+      } catch { return false; }
+    }
   };
 
   const [antigoExiste, novoExiste] = await Promise.all([check(tkAntigo), check(tkNovo)]);
@@ -10564,6 +10592,7 @@ async function fetchYahoo(symbol) {
   const url5d = `https://query1.finance.yahoo.com/v8/finance/chart/${symbol}?interval=1d&range=5d&includePrePost=false`;
   const url1d = `https://query2.finance.yahoo.com/v8/finance/chart/${symbol}?interval=1d&range=5d&includePrePost=false`;
   const strats = [
+    async()=>{const r=await fetch(`${YF_PROXY_VALTOWN}/?url=${encodeURIComponent(url5d)}`,{signal:AbortSignal.timeout(6000)});if(!r.ok)throw 0;return await r.json();},
     async()=>{const r=await fetch(`https://api.allorigins.win/get?url=${encodeURIComponent(url5d)}`,{signal:AbortSignal.timeout(8000)});if(!r.ok)throw 0;return JSON.parse((await r.json()).contents);},
     async()=>{const r=await fetch(`https://corsproxy.io/?${encodeURIComponent(url5d)}`,{signal:AbortSignal.timeout(8000)});if(!r.ok)throw 0;return await r.json();},
     async()=>{const r=await fetch(url5d,{signal:AbortSignal.timeout(8000)});if(!r.ok)throw 0;return await r.json();},
@@ -10592,6 +10621,7 @@ async function fetchYahooCandle(symbol, period) {
   const url = `https://query1.finance.yahoo.com/v8/finance/chart/${symbol}?interval=${interval}&range=${period}`;
   const url2= `https://query2.finance.yahoo.com/v8/finance/chart/${symbol}?interval=${interval}&range=${period}`;
   const strats = [
+    async()=>{const r=await fetch(`${YF_PROXY_VALTOWN}/?url=${encodeURIComponent(url)}`,{signal:AbortSignal.timeout(6000)});if(!r.ok)throw 0;return await r.json();},
     async()=>{const r=await fetch(`https://api.allorigins.win/get?url=${encodeURIComponent(url)}`,{signal:AbortSignal.timeout(10000)});if(!r.ok)throw 0;return JSON.parse((await r.json()).contents);},
     async()=>{const r=await fetch(`https://corsproxy.io/?${encodeURIComponent(url)}`,{signal:AbortSignal.timeout(10000)});if(!r.ok)throw 0;return await r.json();},
     async()=>{const r=await fetch(url,{signal:AbortSignal.timeout(10000)});if(!r.ok)throw 0;return await r.json();},
@@ -14750,6 +14780,7 @@ async function fetchBannerItem(yahoo, isSA = true) {
   const url = `https://query1.finance.yahoo.com/v8/finance/chart/${tk}?interval=1d&range=1d`;
   const url2 = url.replace('query1','query2');
   const proxies = [
+    async () => { const r = await fetch(`${YF_PROXY_VALTOWN}/?url=${encodeURIComponent(url)}`,{signal:AbortSignal.timeout(5000)}); if(!r.ok) throw 0; return await r.json(); },
     async () => { const r = await fetch(`https://api.allorigins.win/get?url=${encodeURIComponent(url)}`,{signal:AbortSignal.timeout(7000)}); if(!r.ok) throw 0; return JSON.parse((await r.json()).contents); },
     async () => { const r = await fetch(`https://corsproxy.io/?${encodeURIComponent(url)}`,{signal:AbortSignal.timeout(7000)}); if(!r.ok) throw 0; return await r.json(); },
     async () => { const r = await fetch(url,{signal:AbortSignal.timeout(7000)}); if(!r.ok) throw 0; return await r.json(); },
