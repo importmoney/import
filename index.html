@@ -818,14 +818,13 @@ body.light .main-scroll{background:#f7f6f3!important;color:#1a1917!important}
 body.light .main-scroll:has(#panel-global.active),
 body.light #panel-global,
 body.light #panel-global *{background-color:unset}
-body.light #panel-global{background:#080808!important;color:#e0e0e0!important}
-body.light #panel-global .pg-wrap{background:#080808!important}
+body.light #panel-global{background:#0a0e16!important;color:#e9edf3!important}
+body.light #panel-global .pg-wrap{background:#0a0e16!important}
 body.light #panel-global .pg-section,
 body.light #panel-global div[style]{background:unset}
-body.light #panel-global .pg-card{background:#111!important;border-color:#1e1e1e!important;color:#e0e0e0!important}
-body.light #panel-global .pg-moeda-card{background:#111!important;border-color:#1e1e1e!important;color:#e0e0e0!important}
-body.light #panel-global .pg-idx-card{background:#111!important;border-color:#1e1e1e!important;color:#e0e0e0!important}
-body.light #panel-global .pg-candle-wrap{background:#111!important;border-color:#1e1e1e!important;color:#e0e0e0!important}
+body.light #panel-global .pg-card{background:#141a24!important;border-color:#242c3d!important;color:#e9edf3!important}
+body.light #panel-global .pg-moeda-card{background:#141a24!important;border-color:#242c3d!important;color:#e9edf3!important}
+body.light #panel-global .pg-idx-card{background:#141a24!important;border-color:#242c3d!important;color:#e9edf3!important}
 body.light .sidebar{background:#ffffff!important;border-color:#e2e0d8!important}
 body.light .sidebar-brand{background:#ffffff!important;border-color:#e2e0d8!important}
 body.light .sidebar-nav .nav-item{color:#6b6860!important}
@@ -833,12 +832,11 @@ body.light .sidebar-nav .nav-item:hover{background:#f0efe9!important;color:#1a19
 body.light .sidebar-nav .nav-item.active{background:#e0f5ec!important;color:#1a8a5c!important;border-left-color:#1a8a5c!important}
 body.light .topbar{background:#ffffff!important;border-color:#e2e0d8!important}
 body.light .panel:not(#panel-global),body.light .content{background:#f7f6f3!important}
-body.light #panel-global{background:#080808!important;color:#e0e0e0!important}
+body.light #panel-global{background:#0a0e16!important;color:#e9edf3!important}
 body.light .card,body.light .metric,body.light .form-wrap,body.light .table-wrap,body.light .acct-card,body.light .pos-card,body.light .modal-box{background:#ffffff!important;border-color:#e2e0d8!important}
 body.light #panel-global .pg-card,
 body.light #panel-global .pg-moeda-card,
-body.light #panel-global .pg-idx-card,
-body.light #panel-global .pg-candle-wrap{background:#111!important;border-color:#1e1e1e!important;color:#e0e0e0!important}
+body.light #panel-global .pg-idx-card{background:#141a24!important;border-color:#242c3d!important;color:#e9edf3!important}
 body.light th{background:#f0efe9!important;color:#6b6860!important;border-color:#e2e0d8!important}
 body.light td{border-color:#e2e0d8!important;color:#1a1917!important}
 body.light tbody tr:hover td{background:#f0efe9!important}
@@ -929,51 +927,60 @@ body.brand{
 #undo-timer{width:28px;height:4px;background:rgba(255,255,255,.25);border-radius:2px;overflow:hidden;margin-left:4px;}
 #undo-timer-fill{height:100%;background:#fff;border-radius:2px;transition:width linear;}
 
-/* ══ Painel Global ═══════════════════════════════════════════════ */
-#panel-global{background:#080808;color:#e0e0e0;font-family:'DM Mono',monospace;overflow-y:auto}
+/* ══ Painel Global — visual de home broker profissional ═══════════ */
+#panel-global{
+  /* Paleta própria (sempre escura, independente do tema do app) —
+     azul-marinho quase preto em vez de preto puro, texto secundário
+     com contraste suficiente para ler (WCAG ~4.6:1+) e valores com peso
+     médio em vez de bold pesado, para não competir com os rótulos. */
+  --pg-bg:        #0a0e16;
+  --pg-card:      #141a24;
+  --pg-card-hov:  #182030;
+  --pg-border:    #232b3d;
+  --pg-border-hov:#39445c;
+  --pg-text:      #e9edf3;
+  --pg-text2:     #9aa4b8;  /* rótulos (Índices, IFIX, nomes de ativos…) */
+  --pg-text3:     #6e7890;  /* auxiliar (datas, eixo do gráfico, rank #) */
+  --pg-green:     #17c787;
+  --pg-red:       #ff5252;
+  background:var(--pg-bg);color:var(--pg-text);font-family:'Plus Jakarta Sans',system-ui,sans-serif;overflow-y:auto;
+}
 /* Painel Global permanece escuro em qualquer tema */
 body.light #panel-global,
 body.light #panel-global .pg-wrap,
 body.light #panel-global .pg-card,
 body.light #panel-global .pg-moeda-card,
-body.light #panel-global .pg-idx-card,
-body.light #panel-global .pg-candle-wrap{background-color:inherit!important;border-color:inherit!important;color:inherit!important}
-.pg-wrap{padding:18px;display:flex;flex-direction:column;gap:16px}
-.pg-title{font-size:11px;font-weight:700;letter-spacing:2px;text-transform:uppercase;color:#555;margin-bottom:8px;border-left:3px solid #333;padding-left:8px}
-.pg-grid{display:grid;gap:8px}
+body.light #panel-global .pg-idx-card{background-color:inherit!important;border-color:inherit!important;color:inherit!important}
+.pg-wrap{padding:20px;display:flex;flex-direction:column;gap:18px}
+.pg-title{font-size:11px;font-weight:600;letter-spacing:1.6px;text-transform:uppercase;color:var(--pg-text2);margin-bottom:9px;border-left:3px solid var(--pg-border-hov);padding-left:8px}
+.pg-grid{display:grid;gap:9px}
 .pg-grid-2{grid-template-columns:repeat(2,1fr)}
 .pg-grid-3{grid-template-columns:repeat(3,1fr)}
 .pg-grid-4{grid-template-columns:repeat(4,1fr)}
-.pg-card{background:#111;border:1px solid #1e1e1e;border-radius:6px;padding:10px 12px;display:flex;flex-direction:column;gap:2px;transition:border-color .2s}
-.pg-card:hover{border-color:#333}
-.pg-card-ticker{font-size:11px;color:#666;letter-spacing:1px}
-.pg-card-name{font-size:10px;color:#444;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
-.pg-card-price{font-size:18px;font-weight:700;letter-spacing:-.5px;font-variant-numeric:tabular-nums}
-.pg-card-change{font-size:12px;font-weight:600}
-.pg-card-change.up{color:#00e676}
-.pg-card-change.dn{color:#ff3d3d}
-.pg-card-change.flat{color:#555}
-.pg-rank{font-size:10px;color:#333;margin-right:4px}
-.pg-moeda-card{background:#111;border:1px solid #1e1e1e;border-radius:6px;padding:12px;display:flex;align-items:center;justify-content:space-between}
-.pg-moeda-flag{font-size:20px}
-.pg-moeda-label{font-size:10px;color:#555;letter-spacing:1px}
-.pg-moeda-val{font-size:16px;font-weight:700}
-.pg-moeda-chg{font-size:11px}
-.pg-idx-card{background:#111;border:1px solid #1e1e1e;border-radius:6px;padding:12px 14px;display:flex;flex-direction:column;gap:3px}
-.pg-idx-name{font-size:10px;color:#555;letter-spacing:1px;text-transform:uppercase}
-.pg-idx-val{font-size:20px;font-weight:700;letter-spacing:-1px;font-variant-numeric:tabular-nums}
-.pg-idx-chg{font-size:12px;font-weight:600}
-.pg-candle-wrap{background:#111;border:1px solid #1e1e1e;border-radius:8px;padding:14px}
-.pg-candle-header{display:flex;gap:8px;align-items:center;margin-bottom:12px;flex-wrap:wrap}
-.pg-candle-input{background:#1a1a1a;border:1px solid #2a2a2a;color:#e0e0e0;padding:6px 10px;border-radius:4px;font-size:12px;font-family:'DM Mono',monospace;width:120px;text-transform:uppercase}
-.pg-candle-input:focus{outline:none;border-color:#444}
-.pg-candle-btn{background:#1e1e1e;border:1px solid #2a2a2a;color:#aaa;padding:6px 12px;border-radius:4px;font-size:11px;cursor:pointer;font-family:inherit;transition:all .2s}
-.pg-candle-btn:hover{background:#2a2a2a;color:#fff}
-.pg-candle-btn.active{background:#222;color:#00e676;border-color:#00e676}
-#pg-candle-chart{width:100%;height:320px;background:#0c0c0c;border-radius:4px}
+.pg-card{background:var(--pg-card);border:1px solid var(--pg-border);border-radius:7px;padding:11px 13px;display:flex;flex-direction:column;gap:3px;transition:border-color .15s,background .15s}
+.pg-card:hover{border-color:var(--pg-border-hov);background:var(--pg-card-hov)}
+.pg-card-ticker{font-size:11.5px;color:var(--pg-text);font-weight:600;letter-spacing:.5px}
+.pg-card-name{font-size:10px;color:var(--pg-text3);white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.pg-card-price{font-size:17px;font-weight:600;letter-spacing:-.3px;font-variant-numeric:tabular-nums;color:var(--pg-text)}
+.pg-card-change{font-size:12px;font-weight:600;font-variant-numeric:tabular-nums}
+.pg-card-change.up{color:var(--pg-green)}
+.pg-card-change.dn{color:var(--pg-red)}
+.pg-card-change.flat{color:var(--pg-text2)}
+.pg-rank{font-size:10px;color:var(--pg-text3);margin-right:4px;font-weight:400}
+.pg-moeda-card{background:var(--pg-card);border:1px solid var(--pg-border);border-radius:7px;padding:13px;display:flex;align-items:center;gap:12px;transition:border-color .15s}
+.pg-moeda-card:hover{border-color:var(--pg-border-hov)}
+.pg-moeda-flag{font-size:19px;flex-shrink:0}
+.pg-moeda-label{font-size:10px;color:var(--pg-text2);letter-spacing:.8px}
+.pg-moeda-val{font-size:15px;font-weight:600;color:var(--pg-text);font-variant-numeric:tabular-nums}
+.pg-moeda-chg{font-size:11px;font-variant-numeric:tabular-nums}
+.pg-idx-card{background:var(--pg-card);border:1px solid var(--pg-border);border-radius:7px;padding:13px 15px;display:flex;flex-direction:column;gap:4px;transition:border-color .15s}
+.pg-idx-card:hover{border-color:var(--pg-border-hov)}
+.pg-idx-name{font-size:10px;color:var(--pg-text2);letter-spacing:.8px;text-transform:uppercase}
+.pg-idx-val{font-size:19px;font-weight:600;letter-spacing:-.5px;font-variant-numeric:tabular-nums}
+.pg-idx-chg{font-size:12px;font-weight:600;font-variant-numeric:tabular-nums}
 .pg-pulse{animation:pg-pulse 2s ease-in-out infinite}
 @keyframes pg-pulse{0%,100%{opacity:1}50%{opacity:.4}}
-.pg-live-dot{width:6px;height:6px;border-radius:50%;background:#00e676;display:inline-block;margin-right:4px;animation:pg-pulse 1.5s infinite}
+.pg-live-dot{width:6px;height:6px;border-radius:50%;background:var(--pg-green);display:inline-block;margin-right:6px;animation:pg-pulse 1.5s infinite}
 .pg-section{display:flex;flex-direction:column;gap:8px}
 @media(max-width:768px){.pg-grid-4{grid-template-columns:repeat(2,1fr)}.pg-grid-3{grid-template-columns:repeat(2,1fr)}.pg-grid-2{grid-template-columns:1fr}}
 </style>
@@ -2592,7 +2599,7 @@ function toast(msg,type='success',duration=3200){
   setTimeout(()=>el.style.display='none',duration);
 }
 
-const TABS={painel:['Painel','Visão full screen da carteira e objetivos do simulador'],global:['Painel Global','Cotações ao vivo · Rankings · Moedas · Índices · Gráfico Candle'],dashboard:['Dashboard','Visão geral da carteira'],cotacoes:['Cotações','Preços atualizados via Yahoo Finance · BVMF'],entrada:['Registrar operação','Compra, venda, proventos e JCP'],posicoes:['Posições abertas','Ativos com saldo positivo em carteira'],historico:['Histórico de operações','Todas as movimentações registradas'],notas:['Notas Importadas','Gerencie as notas de corretagem importadas — remova notas e todas as operações vinculadas'],proventos:['Proventos','Histórico e próximos pagamentos da carteira real'],simulador:['Simulador AFEC','Planejamento isolado — não interfere com sua carteira real'],comparacao:['Comparar Carteiras','Carteira real vs. metas do Simulador AFEC — o que comprar para chegar lá'],fundamentos:['Fundamentos','Indicadores fundamentalistas do Ibovespa — atualizado a cada 15 dias'],gastos:['Controle de Gastos','Despesas, recebimentos e simulador de independência financeira'],conta:['Minha conta','Perfil, configurações e preferências da plataforma'],ir:['Imposto de Renda','Relatório Anual de Rendimentos para declaração IRPF']};
+const TABS={painel:['Painel','Visão full screen da carteira e objetivos do simulador'],global:['Painel Global','Cotações ao vivo · Rankings · Moedas · Índices'],dashboard:['Dashboard','Visão geral da carteira'],cotacoes:['Cotações','Preços atualizados via Yahoo Finance · BVMF'],entrada:['Registrar operação','Compra, venda, proventos e JCP'],posicoes:['Posições abertas','Ativos com saldo positivo em carteira'],historico:['Histórico de operações','Todas as movimentações registradas'],notas:['Notas Importadas','Gerencie as notas de corretagem importadas — remova notas e todas as operações vinculadas'],proventos:['Proventos','Histórico e próximos pagamentos da carteira real'],simulador:['Simulador AFEC','Planejamento isolado — não interfere com sua carteira real'],comparacao:['Comparar Carteiras','Carteira real vs. metas do Simulador AFEC — o que comprar para chegar lá'],fundamentos:['Fundamentos','Indicadores fundamentalistas do Ibovespa — atualizado a cada 15 dias'],gastos:['Controle de Gastos','Despesas, recebimentos e simulador de independência financeira'],conta:['Minha conta','Perfil, configurações e preferências da plataforma'],ir:['Imposto de Renda','Relatório Anual de Rendimentos para declaração IRPF']};
 function switchTab(id){
   document.querySelectorAll('.nav-item').forEach((el,i)=>el.classList.toggle('active',Object.keys(TABS)[i]===id));
   document.querySelectorAll('.panel').forEach(p=>p.classList.remove('active'));
@@ -10583,9 +10590,6 @@ document.addEventListener('DOMContentLoaded', () => {
 // PAINEL GLOBAL — cotações ao vivo, rankings, moedas, índices, candle
 // ══════════════════════════════════════════════════════════════════
 let _pgTimer = null;
-let _pgCandleTicker = 'PETR4';
-let _pgCandlePeriod = '10y';
-let _pgCandleData   = [];
 
 async function fetchYahoo(symbol) {
   // Usar mesma cascata de proxies que o resto da plataforma usa
@@ -10615,31 +10619,49 @@ async function fetchYahoo(symbol) {
   return null;
 }
 
-async function fetchYahooCandle(symbol, period) {
-  const intervals = { '1m':'1d','3m':'1wk','1y':'1mo','5y':'1mo','10y':'1mo' };
-  const interval  = intervals[period] || '1mo';
-  const url = `https://query1.finance.yahoo.com/v8/finance/chart/${symbol}?interval=${interval}&range=${period}`;
-  const url2= `https://query2.finance.yahoo.com/v8/finance/chart/${symbol}?interval=${interval}&range=${period}`;
-  const strats = [
-    async()=>{const r=await fetch(`${YF_PROXY_VALTOWN}/?url=${encodeURIComponent(url)}`,{signal:AbortSignal.timeout(6000)});if(!r.ok)throw 0;return await r.json();},
-    async()=>{const r=await fetch(`https://api.allorigins.win/get?url=${encodeURIComponent(url)}`,{signal:AbortSignal.timeout(10000)});if(!r.ok)throw 0;return JSON.parse((await r.json()).contents);},
-    async()=>{const r=await fetch(`https://corsproxy.io/?${encodeURIComponent(url)}`,{signal:AbortSignal.timeout(10000)});if(!r.ok)throw 0;return await r.json();},
-    async()=>{const r=await fetch(url,{signal:AbortSignal.timeout(10000)});if(!r.ok)throw 0;return await r.json();},
-    async()=>{const r=await fetch(url2,{signal:AbortSignal.timeout(10000)});if(!r.ok)throw 0;return await r.json();},
-  ];
-  for(const fn of strats){
-    try{
-      const j = await fn();
-      const result = j?.chart?.result?.[0];
-      if(!result) continue;
-      const ts  = result.timestamp || [];
-      const q   = result.indicators?.quote?.[0] || {};
-      const data = ts.map((t,i)=>({t:t*1000,o:q.open?.[i],h:q.high?.[i],l:q.low?.[i],c:q.close?.[i]}))
-                     .filter(d=>d.o&&d.h&&d.l&&d.c);
-      if(data.length) return data;
-    } catch(e){}
+// ── Universo de ações para o ranking de maiores altas/quedas ─────────
+// A pedido: só ativos que fazem parte do índice Ibovespa (não o mercado
+// inteiro) — assim o ranking reflete o mesmo grupo de ações que qualquer
+// "maiores altas/baixas do Ibovespa" mostra.
+// Carteira teórica oficial da B3 (a API oficial não é acessível pelos
+// proxies daqui — bloqueia até o proxy próprio — então a lista é fixa e
+// precisa ser atualizada manualmente a cada rebalanceamento trimestral
+// do índice, em janeiro/maio/setembro). Capturada em 21/09/2026 direto de
+// sistemaswebb3-listados.b3.com.br (carteira teórica do dia, 76 ativos).
+const PG_ACOES_IBOV = ['ALOS3','ABEV3','ASAI3','AURE3','AXIA3','AZZA3','B3SA3','BBSE3','BBDC3','BBDC4',
+  'BRAP4','BBAS3','BRAV3','BPAC11','CXSE3','CEAB3','CMIG4','COGN3','CSMG3','CPLE3',
+  'CSAN3','CPFE3','CMIN3','CURY3','CYRE3','DIRR3','EMBJ3','ENGI11','ENEV3','EGIE3',
+  'EQTL3','FLRY3','GGBR4','GOAU4','HAPV3','HYPE3','IGTI11','ISAE4','ITSA4','ITUB4',
+  'KLBN11','RENT3','LREN3','MGLU3','POMO4','MBRF3','BEEF3','MOTV3','MRVE3','MULT3',
+  'NATU3','PETR3','PETR4','PSSA3','PRIO3','RADL3','RDOR3','RAIL3','SBSP3','SANB11',
+  'CSNA3','SMFT3','SUZB3','TAEE11','VIVT3','TEND3','TIMS3','TOTS3','UGPA3','USIM5',
+  'VALE3','VAMO3','VBBR3','VIVA3','WEGE3','YDUQ3'];
+
+// Busca cotações de vários tickers com concorrência limitada (pool de
+// workers) — evita disparar dezenas de requisições simultâneas no proxy a
+// cada atualização do painel, o que arriscaria estourar limite de uso/taxa.
+// Cada ticker tem um teto de tempo próprio: fetchYahoo() sozinho pode
+// tentar até 6 proxies em cascata (até ~45s no pior caso) — ótimo para uma
+// única cotação importante, ruim aqui, onde um único ticker problemático
+// (deslistado, sem dados etc.) travaria o worker inteiro. Ao estourar o
+// teto, esse ticker é só pulado (fica de fora do ranking) e o pool segue.
+function fetchYahooComTeto(tk, tetoMs = 5000) {
+  return Promise.race([
+    fetchYahoo(tk + '.SA').then(d => ({ tk, ...d })),
+    new Promise(resolve => setTimeout(() => resolve({ tk, price: null }), tetoMs)),
+  ]);
+}
+async function fetchYahooEmLote(tickers, concorrencia = 25) {
+  const resultados = new Array(tickers.length);
+  let proximo = 0;
+  async function worker() {
+    while (proximo < tickers.length) {
+      const i = proximo++;
+      resultados[i] = await fetchYahooComTeto(tickers[i]);
+    }
   }
-  return [];
+  await Promise.all(Array.from({length: Math.min(concorrencia, tickers.length)}, worker));
+  return resultados;
 }
 
 async function renderPainelGlobal() {
@@ -10651,14 +10673,14 @@ async function renderPainelGlobal() {
   if(!jaPossuiDados) {
     el.innerHTML = `
     <div style="
-      background:#080808;min-height:100%;padding:28px;
+      background:#0a0e16;min-height:100%;padding:28px;
       display:flex;flex-direction:column;gap:20px;
-      font-family:'DM Mono',monospace;color:#e0e0e0;
+      font-family:'Plus Jakarta Sans',system-ui,sans-serif;color:#e9edf3;
     ">
       <!-- Header -->
       <div style="display:flex;align-items:center;justify-content:space-between">
-        <div style="font-size:14px;font-weight:700;letter-spacing:1px">🌐 PAINEL GLOBAL</div>
-        <div style="display:flex;align-items:center;gap:8px;font-size:11px;color:#444">
+        <div style="font-size:14px;font-weight:600;letter-spacing:1px">🌐 PAINEL GLOBAL</div>
+        <div style="display:flex;align-items:center;gap:8px;font-size:11px;color:#9aa4b8">
           <span style="width:7px;height:7px;border-radius:50%;background:#2ec98e;display:inline-block;animation:pgPulse 1.2s ease-in-out infinite"></span>
           Buscando cotações…
         </div>
@@ -10666,10 +10688,10 @@ async function renderPainelGlobal() {
 
       <!-- Skeleton índices -->
       <div>
-        <div style="font-size:10px;letter-spacing:2px;color:#333;text-transform:uppercase;margin-bottom:10px;border-left:3px solid #1e1e1e;padding-left:8px">Índices</div>
+        <div style="font-size:10px;letter-spacing:1.6px;color:#9aa4b8;text-transform:uppercase;margin-bottom:10px;border-left:3px solid #39445c;padding-left:8px">Índices</div>
         <div style="display:grid;grid-template-columns:repeat(5,1fr);gap:8px">
           ${Array(5).fill(0).map(()=>`
-            <div style="background:#111;border:1px solid #1e1e1e;border-radius:6px;padding:14px">
+            <div style="background:#141a24;border:1px solid #232b3d;border-radius:7px;padding:14px">
               <div class="pg-skel" style="height:9px;width:60%;border-radius:3px;margin-bottom:10px"></div>
               <div class="pg-skel" style="height:20px;width:80%;border-radius:3px;margin-bottom:6px"></div>
               <div class="pg-skel" style="height:9px;width:40%;border-radius:3px"></div>
@@ -10679,10 +10701,10 @@ async function renderPainelGlobal() {
 
       <!-- Skeleton moedas -->
       <div>
-        <div style="font-size:10px;letter-spacing:2px;color:#333;text-transform:uppercase;margin-bottom:10px;border-left:3px solid #1e1e1e;padding-left:8px">Moedas</div>
+        <div style="font-size:10px;letter-spacing:1.6px;color:#9aa4b8;text-transform:uppercase;margin-bottom:10px;border-left:3px solid #39445c;padding-left:8px">Moedas</div>
         <div style="display:grid;grid-template-columns:repeat(3,1fr);gap:8px">
           ${Array(3).fill(0).map(()=>`
-            <div style="background:#111;border:1px solid #1e1e1e;border-radius:6px;padding:14px;display:flex;align-items:center;gap:12px">
+            <div style="background:#141a24;border:1px solid #232b3d;border-radius:7px;padding:14px;display:flex;align-items:center;gap:12px">
               <div class="pg-skel" style="width:32px;height:32px;border-radius:50%;flex-shrink:0"></div>
               <div style="flex:1">
                 <div class="pg-skel" style="height:9px;width:50%;border-radius:3px;margin-bottom:8px"></div>
@@ -10696,10 +10718,10 @@ async function renderPainelGlobal() {
       <div style="display:grid;grid-template-columns:1fr 1fr;gap:16px">
         ${Array(2).fill(0).map((_, ri)=>`
           <div>
-            <div style="font-size:10px;letter-spacing:2px;color:#333;text-transform:uppercase;margin-bottom:10px;border-left:3px solid ${ri===0?'#00e676':'#ff3d3d'};padding-left:8px">${ri===0?'Ações — Maiores Altas':'Ações — Maiores Quedas'}</div>
+            <div style="font-size:10px;letter-spacing:1.6px;color:#9aa4b8;text-transform:uppercase;margin-bottom:10px;border-left:3px solid ${ri===0?'#17c787':'#ff5252'};padding-left:8px">${ri===0?'Ações — Maiores Altas':'Ações — Maiores Quedas'}</div>
             <div style="display:flex;flex-direction:column;gap:6px">
               ${Array(5).fill(0).map(()=>`
-                <div style="background:#111;border:1px solid #1e1e1e;border-radius:6px;padding:10px 12px;display:flex;justify-content:space-between;align-items:center">
+                <div style="background:#141a24;border:1px solid #232b3d;border-radius:7px;padding:10px 12px;display:flex;justify-content:space-between;align-items:center">
                   <div class="pg-skel" style="height:11px;width:45px;border-radius:3px"></div>
                   <div class="pg-skel" style="height:14px;width:55px;border-radius:3px"></div>
                 </div>`).join('')}
@@ -10708,21 +10730,19 @@ async function renderPainelGlobal() {
       </div>
     </div>
     <style>
-      .pg-skel{background:linear-gradient(90deg,#1a1a1a 25%,#252525 50%,#1a1a1a 75%);background-size:200% 100%;animation:pgShimmer 1.5s infinite}
+      .pg-skel{background:linear-gradient(90deg,#161c28 25%,#212939 50%,#161c28 75%);background-size:200% 100%;animation:pgShimmer 1.5s infinite}
       @keyframes pgShimmer{0%{background-position:200% 0}100%{background-position:-200% 0}}
       @keyframes pgPulse{0%,100%{opacity:1}50%{opacity:.3}}
     </style>`;
   }
 
   // ── Ativos B3 para ranking alta/queda ────────────────────────
-  const acoesMais = ['PETR4','VALE3','ITUB4','BBDC4','B3SA3','WEGE3','RENT3','MGLU3','GGBR4','BBAS3',
-                      'SUZB3','RADL3','EMBR3','EQTL3','HYPE3','RAIL3','LREN3','JBSS3','BRFS3','CSAN3'];
   const fiisMais  = ['MXRF11','HGLG11','XPML11','KNRI11','VISC11','BTLG11','HGBS11','GGRC11',
                       'HGRE11','CPTS11','HGCR11','BCFF11','KNCR11','BRCR11','XPLG11'];
 
-  // Fetch paralelo
+  // Fetch paralelo (ações usam o pool de concorrência limitada)
   const [acoesDados, fiisDados, usd, eur, cny, ibov, ifix, nasd, sp, sse] = await Promise.all([
-    Promise.all(acoesMais.map(tk => fetchYahoo(tk+'.SA').then(d => ({tk, ...d})))),
+    fetchYahooEmLote(PG_ACOES_IBOV),
     Promise.all(fiisMais .map(tk => fetchYahoo(tk+'.SA').then(d => ({tk, ...d})))),
     fetchYahoo('BRL=X'),
     fetchYahoo('EURBRL=X'),
@@ -10747,7 +10767,7 @@ async function renderPainelGlobal() {
         <span class="pg-card-ticker"><span class="pg-rank">${i+1}.</span>${d.tk}</span>
         <span class="pg-card-change ${cls(v)}">${fmtP(v)}</span>
       </div>
-      <span class="pg-card-price" style="color:${cls(v)==='up'?'#00e676':cls(v)==='dn'?'#ff3d3d':'#aaa'}">R$${fmtV(d.price)}</span>
+      <span class="pg-card-price" style="color:${cls(v)==='up'?'#17c787':cls(v)==='dn'?'#ff5252':'#e9edf3'}">R$${fmtV(d.price)}</span>
     </div>`;
   };
 
@@ -10769,7 +10789,7 @@ async function renderPainelGlobal() {
     const v = pct(d);
     return `<div class="pg-idx-card">
       <div class="pg-idx-name">${label}</div>
-      <div class="pg-idx-val" style="color:${cls(v)==='up'?'#00e676':cls(v)==='dn'?'#ff3d3d':'#e0e0e0'}">${fmt}${fmtV(d.price)}</div>
+      <div class="pg-idx-val" style="color:${cls(v)==='up'?'#17c787':cls(v)==='dn'?'#ff5252':'#e9edf3'}">${fmt}${fmtV(d.price)}</div>
       <div class="pg-idx-chg ${cls(v)}">${fmtP(v)}</div>
     </div>`;
   };
@@ -10840,10 +10860,10 @@ async function renderPainelGlobal() {
 
     <!-- Header -->
     <div style="display:flex;align-items:center;justify-content:space-between;flex-wrap:wrap;gap:8px">
-      <div style="font-size:14px;font-weight:700;letter-spacing:1px;color:#e0e0e0">🌐 PAINEL GLOBAL</div>
-      <div style="font-size:10px;color:#444;display:flex;align-items:center;gap:6px">
+      <div style="font-size:14px;font-weight:600;letter-spacing:1px;color:#e9edf3">🌐 PAINEL GLOBAL</div>
+      <div style="font-size:10px;color:#9aa4b8;display:flex;align-items:center;gap:6px">
         <span class="pg-live-dot"></span>
-        <span>${estadoLabel} · ${dadosLabel} · ${hora} · atualiza em 5s</span>
+        <span>${estadoLabel} · ${dadosLabel} · ${hora} · atualiza em 20s</span>
       </div>
     </div>
 
@@ -10872,13 +10892,13 @@ async function renderPainelGlobal() {
     <!-- Rankings Ações -->
     <div style="display:grid;grid-template-columns:1fr 1fr;gap:16px">
       <div class="pg-section">
-        <div class="pg-title" style="border-color:#00e676">📈 Ações — Maiores Altas</div>
+        <div class="pg-title" style="border-color:#17c787">📈 Ações — Maiores Altas</div>
         <div class="pg-grid" style="grid-template-columns:1fr">
           ${top5A.map(rankCard).join('')}
         </div>
       </div>
       <div class="pg-section">
-        <div class="pg-title" style="border-color:#ff3d3d">📉 Ações — Maiores Quedas</div>
+        <div class="pg-title" style="border-color:#ff5252">📉 Ações — Maiores Quedas</div>
         <div class="pg-grid" style="grid-template-columns:1fr">
           ${bot5A.map(rankCard).join('')}
         </div>
@@ -10901,125 +10921,7 @@ async function renderPainelGlobal() {
       </div>
     </div>
 
-    <!-- Gráfico candle -->
-    <div class="pg-candle-wrap">
-      <div class="pg-title">Gráfico Candle — Últimos 10 anos</div>
-      <div class="pg-candle-header">
-        <input class="pg-candle-input" id="pg-ticker-input" type="text"
-          value="${_pgCandleTicker}" placeholder="Ex: PETR4, VALE3…"
-          onkeydown="if(event.key==='Enter') pgBuscarCandle()"/>
-        <button class="pg-candle-btn" onclick="pgBuscarCandle()">🔍 Buscar</button>
-        ${['1m','3m','1y','5y','10y'].map(p=>`<button class="pg-candle-btn${_pgCandlePeriod===p?' active':''}" onclick="pgSetPeriod('${p}')">${p}</button>`).join('')}
-        <span id="pg-candle-label" style="font-size:11px;color:#555;margin-left:auto">${_pgCandleTicker}</span>
-      </div>
-      <canvas id="pg-candle-chart" height="320"></canvas>
-    </div>
-
   </div>`;
-
-  // Renderizar candle
-  pgRenderCandle();
-}
-
-async function pgBuscarCandle() {
-  const inp = document.getElementById('pg-ticker-input');
-  if(!inp) return;
-  _pgCandleTicker = inp.value.toUpperCase().trim() || 'PETR4';
-  await pgCarregarCandle();
-}
-
-function pgSetPeriod(p) {
-  _pgCandlePeriod = p;
-  pgCarregarCandle();
-}
-
-async function pgCarregarCandle() {
-  const label = document.getElementById('pg-candle-label');
-  if(label) label.textContent = 'Carregando…';
-  // B3 = adicionar .SA; índices ^BVSP etc; moedas BRL=X
-  let sym = _pgCandleTicker;
-  if(/^[A-Z]{4}\d{1,2}$/.test(sym) || /^[A-Z]{4}\d$/.test(sym)) sym += '.SA';
-  _pgCandleData = await fetchYahooCandle(sym, _pgCandlePeriod);
-  if(label) label.textContent = `${_pgCandleTicker} · ${_pgCandleData.length} candles`;
-  pgRenderCandle();
-}
-
-function pgRenderCandle() {
-  const canvas = document.getElementById('pg-candle-chart');
-  if(!canvas) return;
-  const ctx = canvas.getContext('2d');
-  const W = canvas.offsetWidth || 800;
-  const H = canvas.offsetHeight || 320;
-  canvas.width  = W;
-  canvas.height = H;
-
-  ctx.fillStyle = '#0c0c0c';
-  ctx.fillRect(0,0,W,H);
-
-  const data = _pgCandleData;
-  if(!data.length) {
-    ctx.fillStyle = '#333';
-    ctx.font = '13px monospace';
-    ctx.textAlign = 'center';
-    ctx.fillText('Sem dados — verifique o ticker', W/2, H/2);
-    return;
-  }
-
-  const pad = {l:50,r:12,t:20,b:36};
-  const cW   = W - pad.l - pad.r;
-  const cH   = H - pad.t - pad.b;
-  const n    = data.length;
-  const barW = Math.max(1, Math.floor(cW / n) - 1);
-  const gap  = Math.max(0, Math.floor(cW / n) - barW);
-
-  const allH = data.map(d=>d.h), allL = data.map(d=>d.l);
-  const yMin = Math.min(...allL) * 0.998;
-  const yMax = Math.max(...allH) * 1.002;
-  const yScale = v => pad.t + cH - ((v - yMin)/(yMax - yMin))*cH;
-
-  // Grid
-  ctx.strokeStyle = '#1a1a1a'; ctx.lineWidth = 1;
-  for(let i=0;i<5;i++){
-    const y = pad.t + (cH/4)*i;
-    ctx.beginPath(); ctx.moveTo(pad.l,y); ctx.lineTo(W-pad.r,y); ctx.stroke();
-    const val = yMax - (yMax-yMin)*(i/4);
-    ctx.fillStyle='#444'; ctx.font='9px monospace'; ctx.textAlign='right';
-    ctx.fillText(val.toFixed(2), pad.l-4, y+4);
-  }
-
-  // Candles
-  data.forEach((d,i) => {
-    const x = pad.l + i*(barW+gap) + gap/2;
-    const up = d.c >= d.o;
-    const col = up ? '#00e676' : '#ff3d3d';
-    const yO = yScale(d.o), yC = yScale(d.c);
-    const yH = yScale(d.h), yL = yScale(d.l);
-
-    // Wick
-    ctx.strokeStyle = col; ctx.lineWidth = 1;
-    ctx.beginPath();
-    ctx.moveTo(x + barW/2, yH);
-    ctx.lineTo(x + barW/2, yL);
-    ctx.stroke();
-
-    // Body
-    ctx.fillStyle = col;
-    const top = Math.min(yO,yC), bot = Math.max(yO,yC);
-    const bH  = Math.max(1, bot - top);
-    ctx.fillRect(x, top, barW, bH);
-  });
-
-  // Datas no eixo X
-  ctx.fillStyle='#444'; ctx.font='9px monospace'; ctx.textAlign='center';
-  const step = Math.max(1, Math.floor(n/8));
-  data.forEach((d,i) => {
-    if(i % step === 0) {
-      const x = pad.l + i*(barW+gap) + barW/2;
-      const dt = new Date(d.t);
-      const lbl = `${dt.getMonth()+1}/${dt.getFullYear().toString().slice(2)}`;
-      ctx.fillText(lbl, x, H-8);
-    }
-  });
 }
 
 // Iniciar loop do painel global
@@ -11027,15 +10929,17 @@ function pgRenderCandle() {
 function forcarFundoEscuroPainelGlobal(){
   const el = document.getElementById('panel-global');
   if(!el) return;
-  el.style.setProperty('background','#080808','important');
-  el.style.setProperty('color','#e0e0e0','important');
+  el.style.setProperty('background','#0a0e16','important');
+  el.style.setProperty('color','#e9edf3','important');
 }
 
 async function iniciarPainelGlobal() {
   await renderPainelGlobal();
-  await pgCarregarCandle(); // carrega candle inicial
   if(_pgTimer) clearInterval(_pgTimer);
-  _pgTimer = setInterval(renderPainelGlobal, 5000);
+  // 20s (não 5s): o ranking varre as 76 ações do Ibovespa a cada atualização,
+  // então manter em 5s sobrecarregaria o proxy à toa — um ranking de
+  // "maiores altas/quedas" não precisa ser ao segundo.
+  _pgTimer = setInterval(renderPainelGlobal, 20000);
 }
 
 // Parar loop ao sair da aba
