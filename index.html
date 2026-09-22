@@ -5824,17 +5824,39 @@ function _importarCSVTexto(txt, fileName) {
       n++;
     }
   } else {
-    // ── Formato interno da plataforma ────────────────────────────
-    // Linha 0: cabeçalho
+    // ── Formato interno / simplificado ────────────────────────────
+    // Linha 0: cabeçalho. Colunas lidas pelo NOME (não por posição fixa):
+    // um CSV simples como "Data,Tipo,Ticker,Quantidade,Preco,Taxa,Nota,
+    // Corretora" (comum quando o arquivo não passa pelo Excel/XP) tem só
+    // 8 colunas — bem menos que as 11 que este trecho antes assumia por
+    // posição (nota/corretora nos índices 10/9), então "nota" e
+    // "corretora" sempre chegavam undefined nesses arquivos. Números aqui
+    // usam ponto decimal simples (parseFloat), não o formato BR — é o que
+    // esse formato interno sempre usou.
+    const hCols2 = (lines[0]||'').split(sep).map(c => c.trim().toLowerCase().replace(/[^a-z0-9]/g,''));
+    const idx2 = name => hCols2.findIndex(h => h.includes(name));
+    const iData2   = idx2('data');
+    const iTipo2   = idx2('tipo');
+    const iTicker2 = idx2('ticker') >= 0 ? idx2('ticker') : idx2('ativo');
+    const iQtd2    = idx2('quantidade');
+    const iPreco2  = idx2('preco');
+    const iTaxa2   = idx2('taxa');
+    const iNota2   = idx2('nota');
+    const iCorr3   = idx2('corretora');
+
     for(let i = 1; i < lines.length; i++){
       const row = lines[i].split(sep).map(c => c.trim().replace(/^"|"$/g,''));
-      if(row.length < 5) continue;
-      const [data,tipo,ticker,qtdS,precoS,taxaS,,,,corretora,nota] = row;
-      const qtd   = parseFloat(qtdS)||0;
-      const preco = parseFloat(precoS)||0;
-      const taxa  = parseFloat(taxaS)||0;
+      if(row.length < 3) continue;
+      const data      = iData2   >= 0 ? parseData(row[iData2]) : '';
+      const tipo      = iTipo2   >= 0 ? row[iTipo2] : '';
+      const ticker    = iTicker2 >= 0 ? (row[iTicker2]||'').toUpperCase().trim() : '';
+      const qtd       = iQtd2    >= 0 ? parseFloat(row[iQtd2])  ||0 : 0;
+      const preco     = iPreco2  >= 0 ? parseFloat(row[iPreco2])||0 : 0;
+      const taxa      = iTaxa2   >= 0 ? parseFloat(row[iTaxa2]) ||0 : 0;
+      const nota      = iNota2   >= 0 ? (row[iNota2]||'').trim() : '';
+      const corretora = iCorr3   >= 0 ? (row[iCorr3]||'').trim() : '';
       if(!ticker||!qtd||!preco) continue;
-      importadas.push({_id:uid(), tipo, data, ticker, qtd, preco, taxa, nota:nota||'', corretora:corretora||''});
+      importadas.push({_id:uid(), tipo, data, ticker, qtd, preco, taxa, nota, corretora});
       n++;
     }
   }
