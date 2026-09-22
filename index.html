@@ -1813,6 +1813,15 @@ body.light #panel-global .pg-idx-card{background-color:inherit!important;border-
             <button class="btn btn-sm btn-amber" onclick="abrirModalExcluirAtivo()">🗑 Excluir ativo</button>
             <button class="btn btn-sm btn-danger" onclick="abrirModalResetTotal()">🗑 Zerar todos os dados</button>
           </div>
+          <div class="divider" style="margin:12px 0"></div>
+          <div style="font-size:12px;color:var(--text3);margin-bottom:10px">
+            Backup completo — carteira, simulador AFEC, controle de gastos, DARFs e configurações, tudo num único arquivo TXT que pode ser reimportado depois (inclusive em outro navegador/computador).
+          </div>
+          <div style="display:flex;gap:8px;flex-wrap:wrap">
+            <button class="btn btn-sm btn-blue" onclick="exportarBackupTXT()">📄 Exportar dados (TXT)</button>
+            <button class="btn btn-sm" onclick="document.getElementById('backup-txt-import').click()">📥 Importar dados (TXT)</button>
+            <input type="file" id="backup-txt-import" accept=".txt,text/plain" style="display:none" onchange="importarBackupTXT(event)"/>
+          </div>
         </div>
 
         <!-- Sobre a plataforma -->
@@ -8630,6 +8639,100 @@ function executarResetTotal(){
   renderDashboard();
   toast('Dados da carteira apagados. Simulador AFEC e Controle de Gastos preservados.','warn');
   setTimeout(()=>iniciarTour('dashboard'), 600);
+}
+
+// ── Backup completo em PDF (exportar/importar) ────────────────────
+// Backup completo em arquivo .txt: os dados completos (mesmas chaves
+// sincronizadas com o Wix, ver WIX_SYNC_KEYS) vão em JSON dentro de um
+// bloco de texto marcado, precedido de um cabeçalho legível. Na
+// importação, o mesmo arquivo é lido como texto puro (FileReader) e o
+// bloco entre os marcadores é decodificado de volta.
+const BACKUP_MARCA_INICIO = '===IMPORT_MONEY_BACKUP_START===';
+const BACKUP_MARCA_FIM    = '===IMPORT_MONEY_BACKUP_FIM===';
+
+function exportarBackupTXT(){
+  const dados = {};
+  WIX_SYNC_KEYS.forEach(k => { const v = localStorage.getItem(k); if(v!=null) dados[k]=v; });
+  const payload = { _formato:'IMPORT_MONEY_BACKUP_V1', _exportadoEm: new Date().toISOString(), dados };
+  const json = JSON.stringify(payload);
+
+  const titular   = getTitular();
+  const dataExport= new Date().toLocaleString('pt-BR');
+  const tamanhoKB = (json.length/1024).toFixed(1);
+
+  const texto = `📦 BACKUP COMPLETO — IMPORT MONEY
+Titular: ${(titular?.nome)||'—'}
+Exportado em: ${dataExport}
+Operações na carteira: ${ops.length}
+Tamanho dos dados: ${tamanhoKB} KB
+
+Use o botão "Importar dados (TXT)" na aba Minha Conta para restaurar exatamente este estado.
+⚠️ Este arquivo contém uma cópia completa dos seus dados financeiros — guarde em local seguro.
+Não edite o bloco de texto abaixo: é ele que permite restaurar tudo depois.
+
+${BACKUP_MARCA_INICIO}
+${json}
+${BACKUP_MARCA_FIM}
+`;
+
+  const a=document.createElement('a');a.href=URL.createObjectURL(new Blob(['﻿'+texto],{type:'text/plain;charset=utf-8;'}));
+  a.download='importmoney_backup_'+new Date().toISOString().slice(0,10)+'.txt';a.click();
+  toast('Backup exportado!');
+}
+
+function importarBackupTXT(event){
+  const file = event.target.files[0];
+  if(!file){ return; }
+  const reader = new FileReader();
+  reader.onload = e => {
+    try{
+      let texto = e.target.result;
+      if(texto.charCodeAt(0) === 0xFEFF) texto = texto.slice(1);
+      const ini = texto.indexOf(BACKUP_MARCA_INICIO);
+      const fim = texto.indexOf(BACKUP_MARCA_FIM);
+      if(ini<0 || fim<0 || fim<ini){
+        toast('Este arquivo não parece ser um backup do Import Money.','error');
+        event.target.value=''; return;
+      }
+      const bloco = texto.slice(ini+BACKUP_MARCA_INICIO.length, fim).trim();
+      let payload;
+      try{
+        payload = JSON.parse(bloco);
+      }catch(e){
+        toast('Não consegui ler os dados do arquivo — pode estar corrompido.','error');
+        event.target.value=''; return;
+      }
+      if(!payload || payload._formato!=='IMPORT_MONEY_BACKUP_V1' || !payload.dados){
+        toast('Formato de backup não reconhecido.','error');
+        event.target.value=''; return;
+      }
+
+      let opsBackup=[]; try{ opsBackup = payload.dados[KEY] ? JSON.parse(payload.dados[KEY]) : []; }catch(e){}
+      const dataExport = payload._exportadoEm ? new Date(payload._exportadoEm).toLocaleString('pt-BR') : '—';
+      const confirmMsg = `Este backup foi exportado em ${dataExport} e contém ${opsBackup.length} operação(ões).\n\n`
+        + `Isso vai SUBSTITUIR todos os dados atuais da plataforma (carteira, simulador, gastos, configurações). `
+        + `Dá pra desfazer com o botão Desfazer logo em seguida — mas não depois de recarregar a página.\n\nContinuar?`;
+      if(!confirm(confirmMsg)){ event.target.value=''; return; }
+
+      snapshot('Importar backup TXT');
+      Object.entries(payload.dados).forEach(([k,v]) => { if(v!=null) localStorage.setItem(k, v); });
+
+      // Recarregar as variáveis em memória a partir do que acabou de ser restaurado
+      try{ const r=localStorage.getItem(KEY);         ops        = r?JSON.parse(r):[]; }catch(e){}
+      try{ const r=localStorage.getItem(SIM_KEY);     simState   = r?JSON.parse(r):null; }catch(e){}
+      try{ const r=localStorage.getItem(GASTOS_KEY);  gastosData = r?JSON.parse(r):{}; }catch(e){}
+      provCache = {}; cotacoes = {};
+      aplicarSettingsBoot();
+      renderDashboard();
+      atualizarAbaAtiva();
+      toast(`Backup restaurado: ${opsBackup.length} operação(ões)!`);
+    }catch(err){
+      toast('Erro ao ler o arquivo: '+err.message, 'error');
+    }
+    event.target.value = '';
+  };
+  try { reader.readAsText(file, 'UTF-8'); }
+  catch{ reader.readAsText(file, 'latin1'); }
 }
 
 // ═══════════════════════════════════════════════════════════════════
