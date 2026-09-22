@@ -7393,8 +7393,109 @@ function renderProventos() {
   renderProvMetrics();
   renderProvCharts();
   renderProvFuturos();
+  // Proventos já registrados que a venda importada depois invalidou —
+  // checado sempre (não depende do provCache, só do histórico de ops)
+  renderProvInconsistentes();
   // Se já tem cache, reconciliar imediatamente sem nova busca
   if(Object.keys(provCache).length) reconciliarProventosHistoricos();
+}
+
+// ── Proventos já registrados que ficaram incoerentes com o histórico ──
+// Cenário: o usuário confirma um provento sugerido ANTES de importar uma
+// nota de venda mais antiga. Na hora da confirmação a posição na Data COM
+// parecia correta (a venda ainda não existia no histórico); depois de
+// importar a venda, a posição real naquela data já era menor (ou zero) —
+// o provento ficou registrado com quantidade maior do que deveria, e
+// nada revalidava isso depois. Aqui comparamos cada Provento/JCP já
+// registrado contra qtdNaData() (que já reflete as vendas atuais) e
+// avisa quando a quantidade registrada não bate mais.
+function detectarProventosInconsistentes() {
+  const inconsistentes = [];
+  ops.forEach(o => {
+    if (o.tipo !== 'Provento' && o.tipo !== 'JCP') return;
+    const tk = (o.ticker||'').toUpperCase();
+    const qtdCorreta = qtdNaData(tk, o.data);
+    if (qtdCorreta < +o.qtd) {
+      inconsistentes.push({ id: o._id, ticker: tk, data: o.data, tipo: o.tipo, qtdRegistrada: +o.qtd, qtdCorreta, preco: +o.preco });
+    }
+  });
+  return inconsistentes.sort((a,b) => (a.data||'').localeCompare(b.data||''));
+}
+
+function renderProvInconsistentes() {
+  const container = document.getElementById('prov-historico-body');
+  if (!container) return;
+  const prevPainel = document.getElementById('prov-inconsistentes-painel');
+  if (prevPainel) prevPainel.remove();
+
+  const inconsistentes = detectarProventosInconsistentes();
+  if (!inconsistentes.length) return;
+
+  const painel = document.createElement('div');
+  painel.id = 'prov-inconsistentes-painel';
+  painel.style.cssText = 'margin-bottom:20px';
+
+  const rows = inconsistentes.map(inc => `<tr>
+    <td>${fmtDate(inc.data)}</td>
+    <td><span class="ticker-chip">${inc.ticker}</span></td>
+    <td><span class="badge ${inc.tipo==='JCP'?'badge-jcp':'badge-prov'}">${inc.tipo}</span></td>
+    <td class="mono" style="text-align:right">${fmtN(inc.qtdRegistrada,0)}</td>
+    <td class="mono" style="text-align:right;color:var(--red);font-weight:500">${fmtN(inc.qtdCorreta,0)}</td>
+    <td class="mono" style="text-align:right">${fmt(inc.preco)}</td>
+    <td style="text-align:right"><button class="btn btn-sm btn-danger" onclick="removerProventoInconsistente('${inc.id}')">Remover</button></td>
+  </tr>`).join('');
+
+  painel.innerHTML = `
+    <div style="background:var(--red-bg);border:1px solid #f0c0bc;border-radius:var(--radius);overflow:hidden;margin-bottom:16px">
+      <div style="display:flex;justify-content:space-between;align-items:center;padding:12px 16px;border-bottom:1px solid #f0c0bc;flex-wrap:wrap;gap:8px">
+        <div>
+          <div style="font-size:13px;font-weight:500;color:var(--red)">⚠️ ${inconsistentes.length} provento${inconsistentes.length>1?'s':''} incoerente${inconsistentes.length>1?'s':''} com o histórico</div>
+          <div style="font-size:11px;color:var(--red);opacity:.85;margin-top:2px">
+            Registrados com uma quantidade maior do que você realmente tinha na Data COM — geralmente porque a nota de venda foi importada depois. Remova os que não são mais válidos.
+          </div>
+        </div>
+        <button class="btn btn-sm btn-danger" onclick="removerTodosProventosInconsistentes()">Remover todos</button>
+      </div>
+      <div style="overflow-x:auto">
+        <table style="width:100%;border-collapse:collapse;font-size:13px">
+          <thead><tr style="background:var(--bg)">
+            <th style="padding:8px 12px;font-size:11px;color:var(--text3);text-transform:uppercase;letter-spacing:.4px;border-bottom:1px solid #f0c0bc">Data</th>
+            <th style="padding:8px 12px;font-size:11px;color:var(--text3);text-transform:uppercase;letter-spacing:.4px;border-bottom:1px solid #f0c0bc">Ticker</th>
+            <th style="padding:8px 12px;font-size:11px;color:var(--text3);text-transform:uppercase;letter-spacing:.4px;border-bottom:1px solid #f0c0bc">Tipo</th>
+            <th style="padding:8px 12px;font-size:11px;color:var(--text3);text-transform:uppercase;letter-spacing:.4px;border-bottom:1px solid #f0c0bc;text-align:right">Qtd registrada</th>
+            <th style="padding:8px 12px;font-size:11px;color:var(--text3);text-transform:uppercase;letter-spacing:.4px;border-bottom:1px solid #f0c0bc;text-align:right" title="Quantidade que você realmente tinha na Data COM, considerando as vendas já importadas hoje">Qtd correta ⓘ</th>
+            <th style="padding:8px 12px;font-size:11px;color:var(--text3);text-transform:uppercase;letter-spacing:.4px;border-bottom:1px solid #f0c0bc;text-align:right">R$/ação</th>
+            <th style="padding:8px 12px;font-size:11px;color:var(--text3);text-transform:uppercase;letter-spacing:.4px;border-bottom:1px solid #f0c0bc"></th>
+          </tr></thead>
+          <tbody>${rows}</tbody>
+        </table>
+      </div>
+    </div>`;
+
+  container.parentNode.insertBefore(painel, container);
+}
+
+function removerProventoInconsistente(id) {
+  const op = ops.find(o => o._id === id);
+  if (!op) return;
+  snapshot(`Remover provento incoerente ${op.ticker}`);
+  ops = ops.filter(o => o._id !== id);
+  save();
+  renderProventos();
+  toast('Provento removido','warn');
+}
+
+function removerTodosProventosInconsistentes() {
+  const inconsistentes = detectarProventosInconsistentes();
+  if (!inconsistentes.length) return;
+  const s = getSettings();
+  if (s.confirmDel && !confirm(`Remover ${inconsistentes.length} provento(s) incoerente(s)? Pode ser desfeito com o botão Desfazer.`)) return;
+  snapshot(`Remover ${inconsistentes.length} proventos incoerentes`);
+  const ids = new Set(inconsistentes.map(i => i.id));
+  ops = ops.filter(o => !ids.has(o._id));
+  save();
+  renderProventos();
+  toast(`${inconsistentes.length} provento(s) removido(s)`,'warn');
 }
 
 // ── Proventos registrados na carteira (ops tipo Provento/JCP) ────
