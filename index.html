@@ -2106,6 +2106,24 @@ if(WIX_MODE) {
       }
     }
   };
+  // removeItem também precisa propagar pro Wix — sem isso, ações como
+  // "Zerar plataforma" (Minha Conta) só limpam o localStorage local: o
+  // dado antigo continua salvo no backend do Wix e volta na próxima vez
+  // que a página pedir WIX_DADOS (ex.: ao recarregar), fazendo o reset
+  // "não pegar". O protocolo Wix só tem WIX_SALVAR (não tem "apagar"),
+  // então sincronizamos como valor vazio — é exatamente o que o resto do
+  // app já espera ao ler uma chave ausente (JSON.parse(x||'[]') etc.,
+  // padrão usado em todo o código).
+  const _origRemoveItem = localStorage.removeItem.bind(localStorage);
+  localStorage.removeItem = function(key) {
+    _origRemoveItem(key);
+    if(WIX_SYNC_KEYS && WIX_SYNC_KEYS.has(key)) {
+      if(typeof _wixSaveQueue !== 'undefined') {
+        _wixSaveQueue[key] = '';
+        if(typeof wixFlushSave === 'function') wixFlushSave();
+      }
+    }
+  };
 }
 
 // Chaves que são sincronizadas com o Wix (dados críticos do usuário)
