@@ -5202,12 +5202,21 @@ function parsearSecaoNota(texto){
       const tkF = mFut[2].toUpperCase() + mFut[3].toUpperCase();
       const qtdF = parseInt(mFut[4]);
       const valorOpF = parseFloat(mFut[5].replace(/\./g,'').replace(',','.'));
+      const dcF = mFut[6].toUpperCase();
       if(!qtdF || !valorOpF) continue;
       const precoF = Math.round((valorOpF / qtdF) * 100) / 100;
       negocios.push({
         tipo: cvF==='C' ? 'Compra' : 'Venda', ticker: tkF, qtd: qtdF, preco: precoF,
         data: dataPregao, nota: numNota, corretora,
         _nomeOriginal: tkF, _sel: true, _mercado: 'FUTURO',
+        // "Vlr de Operação/Ajuste" nessas notas já é o ajuste diário (marcação a
+        // mercado contra o preço de referência do dia), não qtd×preço — e o
+        // sinal certo desse ajuste vem da coluna D/C impressa na nota, não de
+        // a linha ser compra ou venda (C/V é só o lado da ordem; D/C é o
+        // resultado daquela execução específica). Testado contra notas reais:
+        // somar D/C-com-sinal bate exatamente com o "Valor dos negócios" que a
+        // própria corretora imprime no resumo da nota.
+        _ajusteFuturo: dcF==='C' ? valorOpF : -valorOpF,
       });
     }
   }
@@ -5255,8 +5264,14 @@ function parsearSecaoNota(texto){
   };
 
   const taxaLiquidacao  = extrairValor('Taxa de liquidação');
-  const taxaRegistro    = extrairValor('Taxa de Registro');
-  const emolumentos     = extrairValor('Emolumentos');
+  // Notas BM&F/Day Trade (futuros) rotulam essas taxas como "Taxa registro
+  // BM&F"/"Taxas BM&F (emol+f.gar)" em vez de "Taxa de Registro"/
+  // "Emolumentos" — extrairValor() acima não bate com esses rótulos. Usa a
+  // mesma linha "IRRF | IRRF Day Trade (proj.) | Taxa operacional | Taxa
+  // registro BM&F | Taxas BM&F (emol+f.gar)" já lida mais abaixo pro IRRF
+  // DT, pegando as duas últimas colunas (antes do D/C final).
+  const taxaRegistro    = extrairValor('Taxa de Registro') || extrairValorLinhaSeguinte('IRRF\\s+IRRF\\s+Day\\s+Trade', -2).valor;
+  const emolumentos     = extrairValor('Emolumentos') || extrairValorLinhaSeguinte('IRRF\\s+IRRF\\s+Day\\s+Trade', -1).valor;
   const taxaTransf      = extrairValor('Taxa de Transf');
   const taxaOperacional = extrairValor('Taxa Operacional');
   const execucao        = extrairValor('Execução');
@@ -12694,7 +12709,7 @@ function calcularIRMesPuro(anoMes, prejSTAntes, prejDTAntes, prejFIIAntes) {
   // ── PM acumulado até início do mês ────────────────────────────
   const pmAcum = {};
   for (const op of [...ops].filter(o=>o.data<inicioMes).sort((a,b)=>new Date(a.data)-new Date(b.data))) {
-    const tk=(op.ticker||'').toUpperCase(); if(optTk.has(tk)) continue;
+    const tk=(op.ticker||'').toUpperCase(); if(optTk.has(tk)||op._mercado==='FUTURO') continue;
     if(!pmAcum[tk]) pmAcum[tk]={qtd:0,pmAdj:0};
     const p=pmAcum[tk];
     if(op.tipo==='Compra'||op.tipo==='IPO'){const nt=p.pmAdj*p.qtd+ +op.preco* +op.qtd;p.qtd+= +op.qtd;p.pmAdj=p.qtd>0?nt/p.qtd:0;}
@@ -12721,7 +12736,7 @@ function calcularIRMesPuro(anoMes, prejSTAntes, prejDTAntes, prejFIIAntes) {
   const comprasDia  = {}; // "data|tk" -> qtd comprada
   const vendasDia   = {}; // "data|tk" -> qtd vendida
   for (const op of opsDoMes) {
-    const tk = (op.ticker||'').toUpperCase(); if(optTk.has(tk)) continue;
+    const tk = (op.ticker||'').toUpperCase(); if(optTk.has(tk)||op._mercado==='FUTURO') continue;
     const chave = `${op.data}|${tk}`;
     if(op.tipo==='Compra')  comprasDia[chave]  = (comprasDia[chave]||0)  + +op.qtd;
     if(op.tipo==='Venda')   vendasDia[chave]   = (vendasDia[chave]||0)   + +op.qtd;
@@ -12736,14 +12751,37 @@ function calcularIRMesPuro(anoMes, prejSTAntes, prejDTAntes, prejFIIAntes) {
   // DT = Day Trade: operações compra+venda no mesmo dia
   // FII = FIIs e ETFs (sem isenção R$20k, alíquota 20%)
   let stAcoes=0, stOpcoes=0, stETF=0;
-  let dtAcoes=0, dtOpcoes=0;
+  let dtAcoes=0, dtOpcoes=0, dtFuturos=0;
   let fiiResult=0;
   let totalVendasST=0, totalVendasDT=0, totalVendasFII=0;
   let irrfST=0, irrfDT=0;
 
   const pmMes = JSON.parse(JSON.stringify(pmAcum));
 
+  // ── Day Trade de futuros (WIN, IND, DOL, WDO etc.) ──────────────
+  // Essas notas não têm "preço médio" nem posição carregada — cada operação
+  // já traz o ajuste do dia pronto (ver _ajusteFuturo, calculado no parser),
+  // então soma-se direto, sem passar pelo loop de Compra/Venda abaixo (que é
+  // do modelo de preço médio, próprio de ações/FIIs). A taxa (registro BM&F +
+  // emolumentos BM&F, já rateada por operação em confirmarNota(), igual pro
+  // resto da plataforma) é descontada por operação, do mesmo jeito que o
+  // resultado de ações desconta op.taxa. O IRRF Day Trade é somado uma vez
+  // por nota (é um total já calculado pela corretora, e cada operação da
+  // mesma nota carrega o mesmo valor em _financeiro.irrfDT).
+  const notasIrrfFuturosContadas = new Set();
   for (const op of opsDoMes) {
+    if(op._mercado !== 'FUTURO') continue;
+    dtFuturos += (+op._ajusteFuturo || 0) - (+op.taxa || 0);
+    totalVendasDT += Math.abs(+op._ajusteFuturo || 0);
+    const notaKey = op.nota || '';
+    if(notaKey && !notasIrrfFuturosContadas.has(notaKey)){
+      notasIrrfFuturosContadas.add(notaKey);
+      irrfDT += op._financeiro?.irrfDT || 0;
+    }
+  }
+
+  for (const op of opsDoMes) {
+    if(op._mercado === 'FUTURO') continue;
     const tk = (op.ticker||'').toUpperCase();
     if(!pmMes[tk]) pmMes[tk]={qtd:0,pmAdj:0};
     const p = pmMes[tk];
@@ -12808,7 +12846,7 @@ function calcularIRMesPuro(anoMes, prejSTAntes, prejDTAntes, prejFIIAntes) {
 
   // ── Totais ST e DT ────────────────────────────────────────────
   const stTotal  = stAcoes + stOpcoes + stETF; // ETFs no swing (15%, sem isenção)
-  const dtTotal  = dtAcoes + dtOpcoes;
+  const dtTotal  = dtAcoes + dtOpcoes + dtFuturos;
   const fiiTotal = fiiResult;
 
   // ── Isenção swing trade: vendas totais de AÇÕES ≤ R$20.000 ───
@@ -12853,7 +12891,7 @@ function calcularIRMesPuro(anoMes, prejSTAntes, prejDTAntes, prejFIIAntes) {
     anoMes,
     // Resultados brutos
     stAcoes, stOpcoes, stETF, stTotal,
-    dtAcoes, dtOpcoes, dtTotal,
+    dtAcoes, dtOpcoes, dtFuturos, dtTotal,
     fiiTotal,
     // Bases de cálculo (após compensar prejuízo)
     stBaseCalc, dtBaseCalc, fiiBaseCalc,
@@ -12952,6 +12990,7 @@ function renderCalculadoraIR(mesSelecionado) {
       <div class="darf-card-title">Day Trade <span class="darf-aliq">20%</span></div>
       <div class="darf-row"><span class="darf-row-label">Mercado à vista — ações</span><span class="darf-row-val ${cls(d.dtAcoes)}">${fmtLiq(d.dtAcoes)}</span></div>
       <div class="darf-row"><span class="darf-row-label">Mercado de opções</span><span class="darf-row-val ${cls(d.dtOpcoes)}">${fmtLiq(d.dtOpcoes)}</span></div>
+      ${d.dtFuturos !== 0 ? `<div class="darf-row"><span class="darf-row-label">Mercado futuro — índice/dólar</span><span class="darf-row-val ${cls(d.dtFuturos)}">${fmtLiq(d.dtFuturos)}</span></div>` : ''}
       <div class="darf-row"><span class="darf-row-label">Resultado líquido do mês</span><span class="darf-row-val ${cls(d.dtTotal)}">${fmtLiq(d.dtTotal)}</span></div>
       <div class="darf-row"><span class="darf-row-label">Prejuízo meses anteriores</span><span class="darf-row-val gray">−${fmt2(d.prejDTAntes)}</span></div>
       <div class="darf-row" style="background:var(--surface2);margin:4px 0;padding:8px 0;border-radius:4px">
