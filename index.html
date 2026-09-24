@@ -13782,115 +13782,23 @@ function calcIR(ano) {
     const inicioMes = `${ano}-${m}-01`;
     const fimMes   = new Date(ano, mi+1, 0).toISOString().slice(0,10);
 
-    const opsDoMes = ops.filter(o => o.data >= inicioMes && o.data <= fimMes);
-
-    // Resultado de vendas à vista (ganho = (preco_venda - pmAdj) * qtd - taxa)
-    // Calcular PM ajustado acumulado até início do mês
-    const pmMes = {};
-    // IR de renda variável usa PM base (custo de aquisição), NÃO o PM ajustado por proventos
-    // Proventos são isentos/tributados em ficha separada — não reduzem o ganho de capital
-    // FIIs são excluídos aqui — têm seu próprio pmFII na seção FII/FIAGRO
-    // PM acumulado até o início do mês — para TODOS os tickers (ações + opções)
-    // exceto FIIs (calculados separadamente)
-    for (const op of [...ops].filter(o=>o.data<inicioMes).sort((a,b)=>new Date(a.data)-new Date(b.data))) {
-      const tk=(op.ticker||'').toUpperCase();
-      if(isFIIou(tk)) continue; // FIIs têm seção própria
-      if(!pmMes[tk]) pmMes[tk]={qtd:0,pmAdj:0};
-      const p=pmMes[tk];
-      if(op.tipo==='Compra'||op.tipo==='IPO'||op.tipo==='Bonificação'){
-        // Compra de ação ou de opção: acumula custo
-        const nt=p.pmAdj*p.qtd + +op.preco* +op.qtd;
-        p.qtd   += +op.qtd;
-        p.pmAdj  = p.qtd>0 ? nt/p.qtd : 0;
-      } else if(op.tipo==='Venda'){
-        // Venda: reduz posição, PM permanece para o restante
-        p.qtd -= +op.qtd;
-        // Zerar pmAdj só faz sentido numa posição genuinamente encerrada.
-        // Para ações, se sobrar negativo (comum em Day Trade, quando o
-        // vendido no dia passa do comprado), zerar o PM faria as vendas
-        // seguintes daquele dia contarem o preço cheio como lucro — por
-        // isso só reseta se realmente zerou por cima (nunca deixa negativo
-        // "sujar" o PM). Para opções, negativo é venda a descoberto de
-        // verdade (operação vendida sem tê-la comprado antes) — mantém o
-        // reset, que já é como este código representa esse estado.
-        if(p.qtd<=0){p.qtd=0; if(optTk.has(tk)) p.pmAdj=0;}
-      } else if(op.tipo==='Desdobramento'){
-        const fator=+op.qtd;
-        if(fator>1){p.qtd=Math.round(p.qtd*fator);p.pmAdj=p.qtd>0?p.pmAdj/fator:0;}
-      } else if(op.tipo==='Grupamento'){
-        const fator=+op.qtd;
-        if(fator>1){p.qtd=Math.round(p.qtd/fator);p.pmAdj=p.qtd>0?p.pmAdj*fator:0;}
-      }
-      // Proventos e JCP: não afetam custo de aquisição para IR
-    }
-
-    // ── Detectar operações Day-Trade: mesmo ticker, mesma data, C+V ──
-    // Day-trade = compra e venda do mesmo ativo no mesmo dia
-    // A quantidade DT é o menor entre comprado e vendido no dia
-    const dtMap = {}; // { 'TICKER|DATA': { comprado, vendido, precoMedioC, precoMedioV } }
-    for(const op of opsDoMes){
-      if(op.tipo !== 'Compra' && op.tipo !== 'Venda') continue;
-      const tk  = (op.ticker||'').toUpperCase();
-      if(optTk.has(tk) || isFIIou(tk)) continue; // FIIs tratados em seção separada
-      const key = tk + '|' + op.data;
-      if(!dtMap[key]) dtMap[key] = {tk, data:op.data, comprado:0, vendido:0, totalC:0, totalV:0};
-      if(op.tipo==='Compra'){
-        dtMap[key].comprado += +op.qtd;
-        dtMap[key].totalC   += +op.preco * +op.qtd;
-      } else {
-        dtMap[key].vendido += +op.qtd;
-        dtMap[key].totalV  += +op.preco * +op.qtd;
-      }
-    }
-
-    // Para cada chave com C e V no mesmo dia, calcular ganho DT
-    let resVista=0, resOpcoes=0, resDT=0, vendaBrutaComum=0, vendaBrutaDT=0;
-    const dtGanhos = {}; // ganho DT já contabilizado por ticker|data
-    for(const [key, d] of Object.entries(dtMap)){
-      if(d.comprado > 0 && d.vendido > 0){
-        const qtdDT     = Math.min(d.comprado, d.vendido);
-        const pmC       = d.totalC / d.comprado;
-        const pmV       = d.totalV / d.vendido;
-        const ganhoDT   = (pmV - pmC) * qtdDT;
-        resDT          += ganhoDT;
-        dtGanhos[key]   = { qtdDT, pmC, pmV };
-        vendaBrutaDT   += pmV * qtdDT;
-      }
-    }
-
-    // Vendas comuns = vendas que não são DT (ou a parte excedente)
-    for(const op of opsDoMes){
-      const tk  = (op.ticker||'').toUpperCase();
-      const pm  = pmMes[tk]||{pmAdj:0,qtd:0};
-      if(op.tipo==='Venda'){
-        // Todas as vendas (incluindo tickers de opções) vão para resVista
-        // Resultado de opções vem apenas de ops tipo 'Opção Call'/'Opção Put'
-        if(!isFIIou(tk)){ // FIIs são calculados separadamente na seção FII/FIAGRO
-          const key = tk + '|' + op.data;
-          const dt  = dtGanhos[key];
-          // Quantidade desta venda que é "comum" (além da parte DT)
-          const qtdComum = dt ? Math.max(0, +op.qtd - dt.qtdDT) : +op.qtd;
-          if(qtdComum > 0){
-            const g = (+op.preco - pm.pmAdj) * qtdComum - (+op.taxa||0) * (qtdComum / +op.qtd);
-            resVista += g;
-            vendaBrutaComum += +op.preco * qtdComum;
-          }
-        }
-      }
-      // Opções: resultado reconhecido apenas no fechamento da posição
-      // (recompra, vencimento ou exercício) — nunca na abertura
-      // Tratado em bloco separado abaixo via calcResOpcoesMes()
-    }
-
-    resOpcoes = calcResOpcoesMes(inicioMes, fimMes, opsSorted);
+    // Ações, day-trade (ações + futuros) e vendas brutas vêm da mesma função
+    // que a Calculadora de IR mensal usa (calcularIRMesPuro) — um único
+    // lugar calcula isso, então os dois relatórios nunca mais desalinham.
+    // Chamada com prejuízo-antes zerado porque aqui só interessa o
+    // resultado bruto do mês; a compensação de prejuízo entre meses é feita
+    // depois, no loop que monta o HTML deste relatório.
+    const dMes = calcularIRMesPuro(`${ano}-${m}`, 0, 0, 0);
+    const resOpcoes = calcResOpcoesMes(inicioMes, fimMes, opsSorted);
 
     return {
       mes,
-      resVista:  +resVista.toFixed(2),
-      resOpcoes: +resOpcoes.toFixed(2),
-      resDT:     +resDT.toFixed(2),
-      vendaBruta:       +(vendaBrutaComum).toFixed(2),
-      vendaBrutaDT:     +(vendaBrutaDT).toFixed(2),
+      resVista:     +dMes.stAcoes.toFixed(2),
+      resOpcoes:    +resOpcoes.toFixed(2),
+      resDT:        +dMes.dtTotal.toFixed(2),
+      vendaBruta:   +dMes.totalVendasST.toFixed(2),
+      vendaBrutaDT: +dMes.totalVendasDT.toFixed(2),
+      irrfDT:       +dMes.irrfDT.toFixed(2),
     };
   });
 
@@ -13953,54 +13861,12 @@ function calcIR(ano) {
       const m = (mi+1).toString().padStart(2,'0');
       const inicioMes = `${a}-${m}-01`;
       const fimMes    = new Date(a, mi+1, 0).toISOString().slice(0,10);
-      const opsDoMes  = opsSorted.filter(o => o.data >= inicioMes && o.data <= fimMes);
-      // PM base para IR — todos os tickers exceto FIIs
-      const pmMes = {};
-      for(const op of opsSorted.filter(o=>o.data<inicioMes)){
-        const tk=(op.ticker||'').toUpperCase(); if(isFIIou(tk)) continue;
-        if(!pmMes[tk]) pmMes[tk]={qtd:0,pmAdj:0};
-        const p=pmMes[tk];
-        if(op.tipo==='Compra'||op.tipo==='IPO'||op.tipo==='Bonificação'){const nt=p.pmAdj*p.qtd+ +op.preco* +op.qtd;p.qtd+= +op.qtd;p.pmAdj=p.qtd>0?nt/p.qtd:0;}
-        // Não zerar pmAdj para ações quando sobra negativo (Day Trade com
-        // vendido > comprado no dia); zerar aqui infla vendas seguintes do
-        // mesmo dia. Para opções, negativo = venda a descoberto de verdade,
-        // mantém o reset (comportamento já existente).
-        else if(op.tipo==='Venda'){p.qtd-= +op.qtd;if(p.qtd<=0){p.qtd=0;if(optTk.has(tk))p.pmAdj=0;}}
-        else if(op.tipo==='Desdobramento'){const f=+op.qtd;if(f>1){p.qtd=Math.round(p.qtd*f);p.pmAdj=p.qtd>0?p.pmAdj/f:0;}}
-        else if(op.tipo==='Grupamento'){const f=+op.qtd;if(f>1){p.qtd=Math.round(p.qtd/f);p.pmAdj=p.qtd>0?p.pmAdj*f:0;}}
-      }
-      // DT map
-      const dtMap={};
-      for(const op of opsDoMes){
-        if(op.tipo!=='Compra'&&op.tipo!=='Venda') continue;
-        const tk=(op.ticker||'').toUpperCase(); if(optTk.has(tk)||isFIIou(tk)) continue; // FIIs excluídos
-        const key=tk+'|'+op.data;
-        if(!dtMap[key]) dtMap[key]={comprado:0,vendido:0,totalC:0,totalV:0};
-        if(op.tipo==='Compra'){dtMap[key].comprado+= +op.qtd;dtMap[key].totalC+= +op.preco* +op.qtd;}
-        else{dtMap[key].vendido+= +op.qtd;dtMap[key].totalV+= +op.preco* +op.qtd;}
-      }
-      const dtGanhos={};
-      let resDT=0;
-      for(const[key,d] of Object.entries(dtMap)){
-        if(d.comprado>0&&d.vendido>0){
-          const qtdDT=Math.min(d.comprado,d.vendido);
-          resDT+=(d.totalV/d.vendido-d.totalC/d.comprado)*qtdDT;
-          dtGanhos[key]={qtdDT};
-        }
-      }
-      let resVista=0, resOpcoes=0;
-      for(const op of opsDoMes){
-        const tk=(op.ticker||'').toUpperCase();
-        const pm=pmMes[tk]||{pmAdj:0};
-        if(op.tipo==='Venda'){
-          // Todas as vendas vão para resVista — resultado de opções só em tipo Opção Call/Put
-          if(!isFIIou(tk)){ // FIIs são tratados separadamente em calcRVFIIAno
-            const dt=dtGanhos[tk+'|'+op.data];const qtdC=dt?Math.max(0,+op.qtd-dt.qtdDT):+op.qtd;if(qtdC>0) resVista+=(+op.preco-pm.pmAdj)*qtdC-(+op.taxa||0)*(qtdC/+op.qtd);
-          }
-        }
-      }
-      resOpcoes = calcResOpcoesMes(inicioMes, fimMes, opsSorted);
-      return {resVista:+resVista.toFixed(2), resOpcoes:+resOpcoes.toFixed(2), resDT:+resDT.toFixed(2)};
+      // Mesma função usada pela Calculadora de IR mensal e pelo Relatório
+      // Anual do ano corrente (ver `rv` acima) — um único lugar calcula
+      // ações/day-trade/futuros, para nunca desalinhar entre os três.
+      const dMes = calcularIRMesPuro(`${a}-${m}`, 0, 0, 0);
+      const resOpcoes = calcResOpcoesMes(inicioMes, fimMes, opsSorted);
+      return {resVista:+dMes.stAcoes.toFixed(2), resOpcoes:+resOpcoes.toFixed(2), resDT:+dMes.dtTotal.toFixed(2)};
     });
   }
 
@@ -14309,8 +14175,11 @@ function renderIR() {
     const prejDTAntesMes = prejCarryDT; // capturar ANTES do cálculo do mês
     const baseDT      = resDT - prejCarryDT;
     const irDevidoDT  = baseDT > 0 ? +(baseDT * 0.20).toFixed(2) : 0;
-    // IR fonte DT: 1% s/ resultado positivo do dia (já retido pela corretora)
-    const irFonteDT   = resDT > 0 ? +(resDT * 0.01).toFixed(2) : 0;
+    // IR fonte DT: mesmo IRRF que a Calculadora de IR mensal usa — 1% sobre
+    // lucro por operação para ações, e o IRRF real de cada nota para
+    // futuros (ver calcularIRMesPuro) — em vez de reestimar aqui com uma
+    // fórmula solta sobre o resultado do mês inteiro.
+    const irFonteDT   = r.irrfDT || 0;
     const irPagarDT   = Math.max(0, +(irDevidoDT - irFonteDT).toFixed(2));
     const novoPrejDT  = baseDT < 0 ? Math.abs(baseDT) : 0;
     if(baseDT >= 0) prejCarryDT = 0; else prejCarryDT = novoPrejDT;
@@ -14349,7 +14218,7 @@ function renderIR() {
             <tr style="color:var(--text3)"><td>Resultado negativo DT até o mês anterior</td><td class="val">${fmtIR(prejDTAntesMes)}</td></tr>
             <tr class="ir-subtotal"><td>Base de cálculo DT</td><td class="val" style="color:${baseDT>0?'var(--green)':'var(--text3)'}">${fmtSin(baseDT)}</td></tr>
             <tr><td>IR devido (20%)</td><td class="val">${fmtIR(irDevidoDT)}</td></tr>
-            <tr style="color:var(--text3)"><td>IR fonte DT (1% s/ result. positivo)</td><td class="val">${fmtIR(irFonteDT)}</td></tr>
+            <tr style="color:var(--text3)"><td>IRRF retido</td><td class="val">${fmtIR(irFonteDT)}</td></tr>
             <tr class="ir-subtotal" style="${irPagarDT>0?'color:var(--red)':''}"><td><strong>IR a recolher DARF 6015</strong></td><td class="val"><strong>${fmtIR(irPagarDT)}</strong></td></tr>
             <tr style="color:var(--text3)"><td>Prej. DT a compensar (próx. meses)</td><td class="val">${fmtIR(novoPrejDT)}</td></tr>
           </tbody></table>
@@ -14739,7 +14608,9 @@ function exportarIRCSV() {
     const resDT   = r.resDT || 0;
     const baseDT  = resDT - prejCarryDT;
     const irDevidoDT = baseDT > 0 ? +(baseDT * 0.20).toFixed(2) : 0;
-    const irFonteDT  = resDT > 0 ? +(resDT * 0.01).toFixed(2) : 0;
+    // Mesmo IRRF que a Calculadora de IR mensal (ver calcularIRMesPuro) —
+    // real de cada nota, não uma fórmula solta de 1% sobre o mês inteiro.
+    const irFonteDT  = r.irrfDT || 0;
     const irPagarDT  = Math.max(0, +(irDevidoDT - irFonteDT).toFixed(2));
     if(baseDT >= 0) prejCarryDT = 0; else prejCarryDT = Math.abs(baseDT);
 
