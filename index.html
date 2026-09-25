@@ -12914,7 +12914,22 @@ function calcularIRMesPuro(anoMes, prejSTAntes, prejDTAntes, prejFIIAntes) {
 
 function renderCalculadoraIR(mesSelecionado) {
   // Popular seletor de meses
-  const meses = [...new Set(ops.map(o=>o.data?.slice(0,7)).filter(Boolean))].sort().reverse();
+  const mesesSet = new Set(ops.map(o=>o.data?.slice(0,7)).filter(Boolean));
+  // Uma opção lançada que vira pó no vencimento não gera nenhuma operação
+  // nesse mês (só a de abertura, antes) — mas tem resultado tributável nele
+  // (ver calcResOpcoesMes). Sem isso, o mês do vencimento nunca aparece
+  // aqui pra selecionar, mesmo aparecendo certo no Relatório Anual (que
+  // sempre varre os 12 meses do ano, independente de ter operação ou não).
+  const vencPorTicker = {};
+  ops.forEach(o => {
+    if(o.tipo!=='Opção Call' && o.tipo!=='Opção Put') return;
+    const tk = (o.ticker||'').toUpperCase();
+    if(vencPorTicker[tk]) return;
+    const venc = o._opcao?.vencimento || deriveVencimentoIR(tk, o.data);
+    if(venc) vencPorTicker[tk] = venc.slice(0,7);
+  });
+  Object.values(vencPorTicker).forEach(m => mesesSet.add(m));
+  const meses = [...mesesSet].sort().reverse();
   const sel = document.getElementById('darf-mes');
   if (!sel) return;
 
@@ -14025,7 +14040,16 @@ function calcIR(ano) {
 
 function renderIR() {
   // Preencher seletor de anos
-  const anos = [...new Set(ops.map(o=>o.data?.slice(0,4)).filter(Boolean))].sort((a,b)=>b-a);
+  const anosSet = new Set(ops.map(o=>o.data?.slice(0,4)).filter(Boolean));
+  // Mesmo caso do seletor de mês da Calculadora de IR: uma opção lançada em
+  // dezembro que vira pó em janeiro do ano seguinte tem resultado tributável
+  // nesse ano seguinte mesmo sem nenhuma operação registrada nele.
+  ops.forEach(o => {
+    if(o.tipo!=='Opção Call' && o.tipo!=='Opção Put') return;
+    const venc = o._opcao?.vencimento || deriveVencimentoIR((o.ticker||'').toUpperCase(), o.data);
+    if(venc) anosSet.add(venc.slice(0,4));
+  });
+  const anos = [...anosSet].sort((a,b)=>b-a);
   const sel = document.getElementById('ir-ano');
   if(anos.length && (!sel.options.length || !anos.includes(sel.value))) {
     sel.innerHTML = anos.map(a=>`<option value="${a}">${a}</option>`).join('');
