@@ -12175,6 +12175,16 @@ function abrirEventoCorporativo(ticker, tipo) {
         <div style="font-size:12px;color:var(--text2);margin-top:8px;padding:8px 12px;background:var(--surface2);border-radius:var(--radius-sm)">
           ${qtdLabel} → soma as ações recebidas gratuitamente, sem alterar o custo total investido (o preço médio cai proporcionalmente). Bonificação não paga imposto.
         </div>
+      </div>
+      <div class="form-group" style="margin-bottom:10px">
+        <label style="font-size:11px;font-weight:600;color:var(--text2);text-transform:uppercase;letter-spacing:.4px">
+          Valor de mercado por ação na data (R$) <span style="font-weight:400;text-transform:none;color:var(--text3)">— opcional</span>
+        </label>
+        <input type="text" id="ev-valor-bonificacao" placeholder="0,00" inputmode="numeric" class="money-input"
+          style="width:100%;padding:8px 12px;border:1.5px solid var(--border);border-radius:var(--radius-sm);font-size:14px;font-family:'DM Mono',monospace;margin-top:6px"/>
+        <div style="font-size:11px;color:var(--text3);margin-top:4px">
+          💡 Preencha para a bonificação aparecer no Relatório Anual, em Rendimentos Isentos e Não Tributáveis (declaração de IR). Sem valor, ela só ajusta a posição.
+        </div>
       </div>`;
   } else {
     camposExtras = `
@@ -12440,11 +12450,15 @@ function confirmarEvento(ticker, tipo) {
   } else if (tipo === 'Bonificação') {
     const qtdBonus = parseFloat(document.getElementById('ev-qtd-bonificacao')?.value);
     if (!qtdBonus || qtdBonus <= 0) { toast('Informe a quantidade de ações bonificadas', 'warn'); return; }
+    // Valor de mercado é opcional — só usado pra declarar em Rendimentos
+    // Isentos (código 18); computePosicoes() ignora o preço da Bonificação
+    // pro cálculo de posição/PM (não muda o custo total investido).
+    const valorMercado = parseFloat((document.getElementById('ev-valor-bonificacao')?.value||'').replace(/\./g,'').replace(',','.')) || 0;
 
     snapshot(`Bonificação ${ticker} +${qtdBonus}`);
     ops.push({
       _id: uid(), tipo: 'Bonificação', data,
-      ticker, qtd: qtdBonus, preco: 0, taxa: 0,
+      ticker, qtd: qtdBonus, preco: valorMercado, taxa: 0,
       nota: `Bonificação de ${qtdBonus} ações (evento corporativo)`,
       corretora: 'Evento corporativo',
     });
@@ -12452,7 +12466,8 @@ function confirmarEvento(ticker, tipo) {
     document.getElementById('modal-evento-corp')?.remove();
     renderPosicoes();
     renderDashboard();
-    toast(`Bonificação de ${ticker} (+${fmtN(qtdBonus,0)} ações) registrada!`);
+    const valorMsg = valorMercado > 0 ? ` · Valor declarado: ${fmt(valorMercado*qtdBonus)}` : '';
+    toast(`Bonificação de ${ticker} (+${fmtN(qtdBonus,0)} ações) registrada!${valorMsg}`);
   }
 }
 
@@ -13879,18 +13894,35 @@ function calcIR(ano) {
   // ── Proventos recebidos no ano (Rendimentos Isentos) ─────────────
   const dividendosPorEmpresa = {};
   const jcpPorEmpresa = {};
+  // Bonificação em ações: código IRPF próprio (05 — Incorporação de reservas
+  // ao capital/bonificações em ações), separado de dividendos (09). Entram
+  // aqui tanto as registradas manualmente (botão Bonificação em Posições
+  // Abertas) quanto as detectadas na importação de nota (título com
+  // "DR1"/"DRI", marcadas _bonificacaoDR1 — ver confirmarNota()) — essas
+  // últimas ficam com tipo:'Provento' pro resto do sistema (não entram na
+  // apuração de ganho de capital), mas são bonificação pra fins de DIRPF,
+  // não dividendo de verdade, então saem do bucket de dividendos.
+  const bonificacoesPorEmpresa = {};
 
-  ops.filter(o => o.data>=`${ano}-01-01` && o.data<=`${ano}-12-31` && (o.tipo==='Provento'||o.tipo==='JCP'))
+  ops.filter(o => o.data>=`${ano}-01-01` && o.data<=`${ano}-12-31` && (o.tipo==='Provento'||o.tipo==='JCP'||o.tipo==='Bonificação'))
      .forEach(op => {
        const tk=(op.ticker||'').toUpperCase();
        const valor=+op.preco* +op.qtd;
+       if(op.tipo==='Bonificação' || (op.tipo==='Provento' && op._bonificacaoDR1)){
+         if(!bonificacoesPorEmpresa[tk]) bonificacoesPorEmpresa[tk]=0;
+         bonificacoesPorEmpresa[tk]+=valor;
+         return;
+       }
        const map = op.tipo==='JCP' ? jcpPorEmpresa : dividendosPorEmpresa;
        if(!map[tk]) map[tk]=0;
        map[tk]+=valor;
      });
 
-  const dividendos = Object.entries(dividendosPorEmpresa).map(([tk,v])=>({ticker:tk,valor:+v.toFixed(2)}));
-  const jcp        = Object.entries(jcpPorEmpresa).map(([tk,v])=>({ticker:tk,valor:+v.toFixed(2)}));
+  const dividendos    = Object.entries(dividendosPorEmpresa).map(([tk,v])=>({ticker:tk,valor:+v.toFixed(2)}));
+  const jcp            = Object.entries(jcpPorEmpresa).map(([tk,v])=>({ticker:tk,valor:+v.toFixed(2)}));
+  // Só reporta bonificações com valor de mercado informado — sem isso (preço
+  // 0, padrão do registro manual) não há o que declarar em Rendimentos Isentos.
+  const bonificacoes    = Object.entries(bonificacoesPorEmpresa).map(([tk,v])=>({ticker:tk,valor:+v.toFixed(2)})).filter(b=>b.valor>0);
 
   // ── Prejuízo acumulado de TODOS os anos anteriores ao declarado ──
   // Regra: prejuízo de renda variável compensa lucros futuros indefinidamente
@@ -14094,7 +14126,7 @@ function calcIR(ano) {
   });
   }
 
-  return { ano, bens, rv, rvFII, dividendos, jcp, prejAcum, prejAnterior };
+  return { ano, bens, rv, rvFII, dividendos, jcp, bonificacoes, prejAcum, prejAnterior };
 }
 
 function renderIR() {
@@ -14394,7 +14426,7 @@ function renderIR() {
   html += `<div class="ir-section">
     <div class="ir-section-header">💚 Rendimentos Isentos e Não Tributáveis — ${ano} &nbsp;<small style="font-weight:400;color:var(--text3)">(Ficha: Rendimentos Isentos e Não Tributáveis)</small></div>
     <div style="font-size:11px;color:var(--text3);margin-bottom:10px;line-height:1.6">
-      Cód. 09 = Lucros e dividendos recebidos · Cód. 26 = Rendimentos de FIIs (Lei 11.033/04 art. 3º §1º)
+      Cód. 09 = Lucros e dividendos recebidos · Cód. 18 = Incorporação de reservas ao capital/bonificações em ações · Cód. 26 = Rendimentos de FIIs (Lei 11.033/04 art. 3º §1º)
     </div>
     <table class="ir-table">
       <thead><tr>
@@ -14403,8 +14435,8 @@ function renderIR() {
       </tr></thead>
       <tbody>`;
 
-  if (!d.dividendos.length) {
-    html += `<tr><td colspan="5" style="text-align:center;color:var(--text3);padding:16px">Nenhum dividendo registrado em ${ano}</td></tr>`;
+  if (!d.dividendos.length && !d.bonificacoes.length) {
+    html += `<tr><td colspan="5" style="text-align:center;color:var(--text3);padding:16px">Nenhum dividendo ou bonificação registrado em ${ano}</td></tr>`;
   } else {
     d.dividendos.forEach(div => {
       const cls = classificarAtivo(div.ticker);
@@ -14424,7 +14456,20 @@ function renderIR() {
         <td class="val">${fmtIR(div.valor)}</td>
       </tr>`;
     });
-    const totalDiv = d.dividendos.reduce((s,x)=>s+x.valor,0);
+    // Cód. 05 — Incorporação de reservas ao capital/bonificações em ações
+    d.bonificacoes.forEach(bon => {
+      const cnpjBon  = getCNPJ(bon.ticker);
+      const razaoBon = getRazaoSocial(bon.ticker);
+      html += `<tr>
+        <td class="cod">18</td>
+        <td>Incorporação de reservas ao capital/bonificações em ações</td>
+        <td class="cod" style="font-family:'DM Mono',monospace;font-size:11px;white-space:nowrap">${cnpjBon}</td>
+        <td class="cod">${bon.ticker}</td>
+        <td class="disc">${razaoBon}</td>
+        <td class="val">${fmtIR(bon.valor)}</td>
+      </tr>`;
+    });
+    const totalDiv = d.dividendos.reduce((s,x)=>s+x.valor,0) + d.bonificacoes.reduce((s,x)=>s+x.valor,0);
     html += `<tr class="ir-subtotal"><td colspan="4">Total rendimentos isentos</td><td class="val">${fmtIR(totalDiv)}</td></tr>`;
   }
   html += '</tbody></table></div>';
@@ -14579,6 +14624,7 @@ async function gerarRelatorioIR() {
       bens: d.bens,
       rv: d.rv,
       dividendos: d.dividendos,
+      bonificacoes: d.bonificacoes,
       jcp: d.jcp,
     });
 
@@ -14853,16 +14899,20 @@ ${totalIRPagar>0?`<div style="background:#fff0f0;border:1px solid #c00;padding:1
 </div>`:''}
 
 <div class="section-title">RENDIMENTOS ISENTOS E NÃO TRIBUTÁVEIS</div>
-<div class="section-sub">Ficha "Rendimentos Isentos e Não Tributáveis" · Cód. 09 = Dividendos de ações · Cód. 26 = Rendimentos de FIIs</div>
+<div class="section-sub">Ficha "Rendimentos Isentos e Não Tributáveis" · Cód. 09 = Dividendos de ações · Cód. 18 = Bonificações em ações · Cód. 26 = Rendimentos de FIIs</div>
 <table><thead><tr><th>Cód.</th><th>Tipo</th><th>Fonte / Ticker</th><th>Discriminação</th><th class="val">Valor</th></tr></thead><tbody>
-${d.dividendos.length ? d.dividendos.map(dv=>{
+${(d.dividendos.length || d.bonificacoes.length) ? d.dividendos.map(dv=>{
   const ETFs_DIV = new Set(['BOVA11','SMAL11','IVVB11','SPXI11','DIVO11','MLCX11','SMLL11','BOVB11','ECOO11','GOVE11','MATB11','UTIL11','FIND11','IFNC11','PIBB11','ISUS11','XBOV11','EMER11','GOLD11','HASH11','NFTS11','DEFI11','CRPT11','WEB311','NAVE11','IMAB11','IB5M11','IRFM11','FIXA11','IPCA11','B5P211','B5MB11','IMA11','IRF111','IRFS11','EURP11','USDB11','XINA11','ASIA11','NASD11','ACWI11','GLOB11','TECK11','SEMI11','ROBS11','ROBO11','OGLD11','WRLD11']);
   const isFII = /^[A-Z]{4}11$/.test((dv.ticker||'').toUpperCase()) && !ETFs_DIV.has((dv.ticker||'').toUpperCase());
   return `<tr><td>${isFII?'26':'09'}</td><td>${isFII?'Rendimentos FII (Lei 11.033/04)':'Lucros e dividendos'}</td><td>${dv.ticker}</td>
     <td>DIVIDENDOS RECEBIDOS DE ${dv.ticker} — CNPJ CORRETORA: 02.332.886/0001-78 (CLEAR/XP)</td>
     <td class="val">${fmtIR(dv.valor)}</td></tr>`;
-}).join('')+'<tr class="subtotal"><td colspan="4">Total rendimentos isentos</td><td class="val">'+fmtIR(d.dividendos.reduce((s,x)=>s+x.valor,0))+'</td></tr>'
-: '<tr><td colspan="5" style="text-align:center;color:#888">Nenhum dividendo em '+ano+'</td></tr>'}
+}).join('')
++ d.bonificacoes.map(bon=>`<tr><td>18</td><td>Incorporação de reservas ao capital/bonificações em ações</td><td>${bon.ticker}</td>
+    <td>BONIFICAÇÃO EM AÇÕES DE ${bon.ticker} — CNPJ CORRETORA: 02.332.886/0001-78 (CLEAR/XP)</td>
+    <td class="val">${fmtIR(bon.valor)}</td></tr>`).join('')
++'<tr class="subtotal"><td colspan="4">Total rendimentos isentos</td><td class="val">'+fmtIR(d.dividendos.reduce((s,x)=>s+x.valor,0)+d.bonificacoes.reduce((s,x)=>s+x.valor,0))+'</td></tr>'
+: '<tr><td colspan="5" style="text-align:center;color:#888">Nenhum dividendo ou bonificação em '+ano+'</td></tr>'}
 </tbody></table>
 
 <div class="section-title">RENDIMENTOS SUJEITOS À TRIBUTAÇÃO EXCLUSIVA/DEFINITIVA</div>
