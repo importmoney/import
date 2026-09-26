@@ -3386,6 +3386,7 @@ function renderPosicoes(){
         <button class="btn-event" onclick="abrirEventoCorporativo('${p.ticker}','Desdobramento')" title="Desdobramento — multiplicar ações pelo fator">✂ Desdobramento</button>
         <button class="btn-event" onclick="abrirEventoCorporativo('${p.ticker}','Grupamento')" title="Grupamento — agrupar ações pelo fator">⊞ Grupamento</button>
         <button class="btn-event" onclick="abrirEventoCorporativo('${p.ticker}','Conversão')" title="Conversão — trocar para outro ticker">⇄ Conversão</button>
+        <button class="btn-event" onclick="abrirEventoCorporativo('${p.ticker}','Bonificação')" title="Bonificação — registrar ações recebidas gratuitamente">🎁 Bonificação</button>
       </div>
     </div>`;
   }).join('');
@@ -5082,7 +5083,12 @@ function parsearSecaoNota(texto){
     // IPO importado de nota entra como Compra, com nota informativa
     const tipoLinha = isIPOLinha ? 'Compra' : (cv==='C'?'Compra':'Venda');
     const notaLinha = isIPOLinha ? (numNota ? `IPO · Nota ${numNota}` : 'IPO (Oferta Pública)') : numNota;
-    negocios.push({tipo:tipoLinha,ticker:tickerFinal,qtd,preco,data:dataPregao,nota:notaLinha,corretora,_nomeOriginal:parteNome.trim(),_sel:true,_mercado:mercado,_obsDayTrade:obsDayTrade});
+    // "DR1"/"DRI" na especificação do título costuma marcar a liquidação
+    // automática de uma bonificação pela corretora (ex.: "XP INC DR1") — a
+    // confirmação com o usuário acontece depois, em confirmarNota(), já que
+    // até lá a operação ainda pode ser desmarcada na prévia da importação.
+    const possivelBonificacao = /\bDR[1I]\b/i.test(parteNome);
+    negocios.push({tipo:tipoLinha,ticker:tickerFinal,qtd,preco,data:dataPregao,nota:notaLinha,corretora,_nomeOriginal:parteNome.trim(),_sel:true,_mercado:mercado,_obsDayTrade:obsDayTrade,_possivelBonificacao:possivelBonificacao});
   }
   // ── Parser multi-linha (formato 2021: cada campo numa linha separada) ─────
   // Padrão detectado:
@@ -5164,7 +5170,8 @@ function parsearSecaoNota(texto){
       if(!negocios.find(n=>n.ticker===tk2&&n.qtd===qtd2&&n.preco===preco2)){
         negocios.push({tipo:tipo2,ticker:tk2,qtd:qtd2,preco:preco2,
           data:dataPregao,nota:numNota,corretora,
-          _nomeOriginal:lNome.trim(),_sel:true,_mercado:mercado2});
+          _nomeOriginal:lNome.trim(),_sel:true,_mercado:mercado2,
+          _possivelBonificacao:/\bDR[1I]\b/i.test(lNome)});
       }
     }
   }
@@ -5182,7 +5189,7 @@ function parsearSecaoNota(texto){
       if(tickerExplM2) tk2=tickerExplM2[1];
       else{const tipoM2=parteNome2.match(/\s+((?:ON|PN[AB]?|CI|UNT)(?:\s+(?:N2|NM|EJ))?)\s*$/i);const nome2=tipoM2?parteNome2.slice(0,tipoM2.index).trim():parteNome2;tk2=resolverTicker(nome2,tipoM2?tipoM2[1]:'');}
       if(!tk2||negocios.find(n=>n.ticker===tk2&&n.qtd===qtd2&&n.preco===preco2)) continue;
-      negocios.push({tipo:cv2==='C'?'Compra':'Venda',ticker:tk2,qtd:qtd2,preco:preco2,data:dataPregao,nota:numNota,corretora,_nomeOriginal:parteNome2,_sel:true});
+      negocios.push({tipo:cv2==='C'?'Compra':'Venda',ticker:tk2,qtd:qtd2,preco:preco2,data:dataPregao,nota:numNota,corretora,_nomeOriginal:parteNome2,_sel:true,_possivelBonificacao:/\bDR[1I]\b/i.test(parteNome2)});
     }
   }
 
@@ -5520,6 +5527,28 @@ function renderPreviewNota(data,nota,corretora,negocios){
 function confirmarNota(){
   const sel=notaPendente.filter(n=>n._sel);
   if(!sel.length){toast('Selecione ao menos uma operação.','warn');return;}
+
+  // ── Possível bonificação (título com "DR1"/"DRI") ─────────────────
+  // A corretora às vezes liquida automaticamente uma bonificação recebida,
+  // gerando uma linha de venda na nota (ex.: bonificação da XP Inc). Só o
+  // usuário sabe se aquela venda específica foi mesmo isso, então pergunta
+  // por operação — confirmando, vira Provento (não entra na apuração de
+  // ganho de capital), já que bonificação não paga imposto.
+  sel.forEach(n => {
+    if(!n._possivelBonificacao) return;
+    const ehBonificacao = confirm(
+      `A operação de ${n.ticker} (nota ${n.nota||'—'}, "${n._nomeOriginal||''}") tem "DR1"/"DRI" na especificação do título — isso costuma indicar a liquidação automática de uma bonificação pela corretora.\n\n`+
+      `Quantidade: ${n.qtd} · Valor: ${fmt(+n.qtd*+n.preco)}\n\n`+
+      `Essa entrada é uma Bonificação?`
+    );
+    // _bonificacaoDR1 marca a origem pro detector de proventos incoerentes
+    // (detectarProventosInconsistentes) não sinalizar falso positivo: não
+    // existe posição por trás — a bonificação foi liquidada na hora pela
+    // corretora, não é uma cota que o usuário continuou segurando.
+    if(ehBonificacao){ n.tipo = 'Provento'; n._bonificacaoDR1 = true; }
+    delete n._possivelBonificacao;
+  });
+
   // A duplicidade real (negócio a negócio) já foi resolvida antes de chegar
   // aqui, em resolverDuplicidadeNota() — chamada durante o parse do arquivo.
   // Não checar de novo pelo nº da nota isoladamente: uma nota com mais de
@@ -7477,6 +7506,7 @@ function detectarProventosInconsistentes() {
   const inconsistentes = [];
   ops.forEach(o => {
     if (o.tipo !== 'Provento' && o.tipo !== 'JCP') return;
+    if (o._bonificacaoDR1) return; // liquidada na hora, sem posição por trás — não é incoerência
     const tk = (o.ticker||'').toUpperCase();
     const qtdCorreta = qtdNaData(tk, o.data);
     if (qtdCorreta < +o.qtd) {
@@ -12108,6 +12138,7 @@ function abrirEventoCorporativo(ticker, tipo) {
   const isDesdobramento = tipo === 'Desdobramento';
   const isGrupamento    = tipo === 'Grupamento';
   const isConversao     = tipo === 'Conversão';
+  const isBonificacao   = tipo === 'Bonificação';
 
   const hoje = new Date().toISOString().slice(0, 10);
 
@@ -12116,8 +12147,8 @@ function abrirEventoCorporativo(ticker, tipo) {
   modal.style.cssText = 'position:fixed;inset:0;z-index:9500;background:rgba(0,0,0,.5);display:flex;align-items:center;justify-content:center';
   modal.onclick = e => { if (e.target === modal) modal.remove(); };
 
-  const icone = isDesdobramento ? '✂' : isGrupamento ? '⊞' : '⇄';
-  const cor   = isDesdobramento ? '#1565c0' : isGrupamento ? '#880e4f' : '#6a1b9a';
+  const icone = isDesdobramento ? '✂' : isGrupamento ? '⊞' : isBonificacao ? '🎁' : '⇄';
+  const cor   = isDesdobramento ? '#1565c0' : isGrupamento ? '#880e4f' : isBonificacao ? '#2e7d32' : '#6a1b9a';
 
   let camposExtras = '';
   if (isDesdobramento || isGrupamento) {
@@ -12133,6 +12164,17 @@ function abrirEventoCorporativo(ticker, tipo) {
           style="width:100%;padding:8px 12px;border:1.5px solid var(--border);border-radius:var(--radius-sm);font-size:14px;font-family:'DM Mono',monospace;margin-top:6px"
           oninput="previewEvento('${ticker}','${tipo}')"/>
         <div style="font-size:12px;color:var(--text2);margin-top:8px;padding:8px 12px;background:var(--surface2);border-radius:var(--radius-sm)" id="ev-hint">${hint}</div>
+      </div>`;
+  } else if (isBonificacao) {
+    const qtdLabel = isDescoberto ? `${fmtN(Math.abs(qtdAtual),0)} ações (descoberto)` : semPosicao ? '0 ações (sem posição)' : `${fmtN(qtdAtual,0)} ações`;
+    camposExtras = `
+      <div class="form-group" style="margin-bottom:14px">
+        <label style="font-size:11px;font-weight:600;color:var(--text2);text-transform:uppercase;letter-spacing:.4px">Qtd de ações bonificadas</label>
+        <input type="number" id="ev-qtd-bonificacao" min="1" step="1" placeholder="Ex: 10"
+          style="width:100%;padding:8px 12px;border:1.5px solid var(--border);border-radius:var(--radius-sm);font-size:14px;font-family:'DM Mono',monospace;margin-top:6px"/>
+        <div style="font-size:12px;color:var(--text2);margin-top:8px;padding:8px 12px;background:var(--surface2);border-radius:var(--radius-sm)">
+          ${qtdLabel} → soma as ações recebidas gratuitamente, sem alterar o custo total investido (o preço médio cai proporcionalmente). Bonificação não paga imposto.
+        </div>
       </div>`;
   } else {
     camposExtras = `
@@ -12193,7 +12235,7 @@ function abrirEventoCorporativo(ticker, tipo) {
 
   document.body.appendChild(modal);
   setTimeout(() => {
-    const inp = document.getElementById('ev-fator') || document.getElementById('ev-novo-ticker');
+    const inp = document.getElementById('ev-fator') || document.getElementById('ev-qtd-bonificacao') || document.getElementById('ev-novo-ticker');
     inp?.focus();
     previewEvento(ticker, tipo);
   }, 100);
@@ -12394,6 +12436,23 @@ function confirmarEvento(ticker, tipo) {
     renderDashboard();
     const pmMsg = precoNovo > 0 ? ` · PM novo: ${fmt(precoNovo)}` : ` · PM mantido: ${fmt(pmAntigo)}`;
     toast(`Conversão registrada: ${ticker} → ${novoTk} · ${qtdConv} cotas${pmMsg}`);
+
+  } else if (tipo === 'Bonificação') {
+    const qtdBonus = parseFloat(document.getElementById('ev-qtd-bonificacao')?.value);
+    if (!qtdBonus || qtdBonus <= 0) { toast('Informe a quantidade de ações bonificadas', 'warn'); return; }
+
+    snapshot(`Bonificação ${ticker} +${qtdBonus}`);
+    ops.push({
+      _id: uid(), tipo: 'Bonificação', data,
+      ticker, qtd: qtdBonus, preco: 0, taxa: 0,
+      nota: `Bonificação de ${qtdBonus} ações (evento corporativo)`,
+      corretora: 'Evento corporativo',
+    });
+    save();
+    document.getElementById('modal-evento-corp')?.remove();
+    renderPosicoes();
+    renderDashboard();
+    toast(`Bonificação de ${ticker} (+${fmtN(qtdBonus,0)} ações) registrada!`);
   }
 }
 
