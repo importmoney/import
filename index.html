@@ -3386,7 +3386,7 @@ function renderPosicoes(){
         <button class="btn-event" onclick="abrirEventoCorporativo('${p.ticker}','Desdobramento')" title="Desdobramento — multiplicar ações pelo fator">✂ Desdobramento</button>
         <button class="btn-event" onclick="abrirEventoCorporativo('${p.ticker}','Grupamento')" title="Grupamento — agrupar ações pelo fator">⊞ Grupamento</button>
         <button class="btn-event" onclick="abrirEventoCorporativo('${p.ticker}','Conversão')" title="Conversão — trocar para outro ticker">⇄ Conversão</button>
-        <button class="btn-event" onclick="abrirEventoCorporativo('${p.ticker}','Bonificação')" title="Bonificação — registrar ações recebidas gratuitamente">🎁 Bonificação</button>
+        <button class="btn-event" onclick="abrirEventoCorporativo('${p.ticker}','Bonificação')" title="Bonificação — registrar ações recebidas gratuitamente">Bonificação</button>
       </div>
     </div>`;
   }).join('');
@@ -3477,7 +3477,8 @@ function renderHistorico(pag){
     let liq=(o.tipo==='Compra'||o.tipo==='IPO')?-(total+taxa):o.tipo==='Venda'?total-taxa:total;
     const bc={Compra:'badge-compra',IPO:'badge-compra',Venda:'badge-venda',Provento:'badge-prov',JCP:'badge-jcp','Opção Call':'badge-prov','Opção Put':'badge-jcp'}[o.tipo]||'badge-prov';
     const tipoLabel = o._conversao ? (o.tipo==='Venda' ? 'Conv. ↗' : 'Conv. ↙') : o.tipo;
-    const tickerLabel = (o.tipo==='Conversão' && o._tickerNovo) ? `${(o.ticker||'').toUpperCase()} → ${o._tickerNovo}` : (o.ticker||'').toUpperCase();
+    const tickerRaw = (o.ticker||'').toUpperCase();
+    const tickerLabel = (o.tipo==='Conversão' && o._tickerNovo) ? `${tickerRaw} → ${o._tickerNovo}` : tickerRaw;
     const pmA=pmMap[o._id]||0;
     const posA=posMap[o._id];
     const fi=o._financeiro||{};
@@ -3486,7 +3487,7 @@ function renderHistorico(pag){
     return `<tr>
       <td style="white-space:nowrap">${fmtDate(o.data)}</td>
       <td><span class="badge ${bc}" style="font-size:10px;padding:2px 6px;${o._conversao?'opacity:.75':''}" title="${o.nota||''}">${tipoLabel}</span></td>
-      <td><span class="ticker-chip">${tickerLabel}</span></td>
+      <td style="white-space:nowrap"><span class="ticker-chip">${tickerLabel}</span> <button class="btn-event" onclick="abrirEventoCorporativo('${tickerRaw}','Conversão')" title="Conversão — trocar para outro ticker">⇄ Conversão</button></td>
       <td class="mono" style="text-align:right">${fmtN(+o.qtd,0)}</td>
       <td class="mono" style="text-align:right">${fmt(+o.preco)}</td>
       <td class="mono" style="text-align:right">${fmt(total)}</td>
@@ -12144,7 +12145,7 @@ function abrirEventoCorporativo(ticker, tipo) {
 
   const modal = document.createElement('div');
   modal.id = 'modal-evento-corp';
-  modal.style.cssText = 'position:fixed;inset:0;z-index:9500;background:rgba(0,0,0,.5);display:flex;align-items:center;justify-content:center';
+  modal.style.cssText = 'position:fixed;inset:0;z-index:9500;background:rgba(0,0,0,.5);display:flex;align-items:flex-start;justify-content:center;overflow-y:auto;padding:40px 16px;box-sizing:border-box';
   modal.onclick = e => { if (e.target === modal) modal.remove(); };
 
   const icone = isDesdobramento ? '✂' : isGrupamento ? '⊞' : isBonificacao ? '🎁' : '⇄';
