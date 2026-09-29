@@ -2685,9 +2685,12 @@ function qtdNaData(tk, dataAlvo){
   return Math.max(0,qtd);
 }
 
-function computePosicoes(){
+// opsList opcional: permite recalcular a posição só com as operações até uma
+// certa data (ex.: "quanto eu tinha no dia do evento corporativo"), em vez de
+// usar sempre o histórico completo. Sem argumento, comportamento normal.
+function computePosicoes(opsList){
   const pos={};
-  for(const op of [...ops].sort((a,b)=>new Date(a.data)-new Date(b.data))){
+  for(const op of [...(opsList||ops)].sort((a,b)=>new Date(a.data)-new Date(b.data))){
     const tk=(op.ticker||'').toUpperCase();
     if(!pos[tk]) pos[tk]={ticker:tk,qtd:0,pmBase:0,pmAdj:0,
       totalInvest:0,   // custo atual em carteira (só posição aberta)
@@ -12232,7 +12235,9 @@ function abrirEventoCorporativo(ticker, tipo) {
       <div class="form-group" style="margin-bottom:14px">
         <label style="font-size:11px;font-weight:600;color:var(--text2);text-transform:uppercase;letter-spacing:.4px">Data do evento</label>
         <input type="date" id="ev-data" value="${hoje}"
-          style="width:100%;padding:8px 12px;border:1.5px solid var(--border);border-radius:var(--radius-sm);font-size:13px;margin-top:6px"/>
+          style="width:100%;padding:8px 12px;border:1.5px solid var(--border);border-radius:var(--radius-sm);font-size:13px;margin-top:6px"
+          ${isConversao ? `oninput="previewConversao('${ticker}')"` : ''}/>
+        ${isConversao ? `<div style="font-size:11px;color:var(--text3);margin-top:4px">💡 Se houver operações de ${ticker} depois dessa data, a conversão usa a posição que você tinha NESSA data, não a de hoje.</div>` : ''}
       </div>
       ${camposExtras}
       <div style="display:flex;justify-content:flex-end;gap:8px;margin-top:4px">
@@ -12281,10 +12286,14 @@ async function buscarCotacaoConversao(tickerAntigo) {
 function previewConversao(tickerAntigo) {
   const novoTk    = (document.getElementById('ev-novo-ticker')?.value||'').toUpperCase().trim();
   const precoNovo = parseFloat(document.getElementById('ev-preco-novo')?.value) || 0;
+  const dataEvento = document.getElementById('ev-data')?.value;
   const prevEl    = document.getElementById('ev-conv-preview');
   if (!prevEl) return;
 
-  const pos    = computePosicoes();
+  // Posição NA DATA DO EVENTO — precisa bater com o que confirmarEvento() vai
+  // realmente converter, senão a prévia mostra uma quantidade e o resultado
+  // aplicado é outro (ver comentário em confirmarEvento).
+  const pos    = dataEvento ? computePosicoes(ops.filter(o => o.data <= dataEvento)) : computePosicoes();
   const p      = pos[tickerAntigo];
   if (!p || !novoTk) { prevEl.style.display='none'; return; }
 
@@ -12386,9 +12395,14 @@ function confirmarEvento(ticker, tipo) {
 
     snapshot(`Conversão ${ticker} → ${novoTk}`);
 
-    // Obter posição atual do ticker antigo
-    const posAtual  = computePosicoes();
-    const pAntigo   = posAtual[ticker] || p;
+    // Obter posição do ticker antigo NA DATA DO EVENTO (não a posição de hoje!)
+    // — se o evento for retroativo e existirem operações do ticker antigo
+    // depois dessa data, usar a posição atual converteria a quantidade errada
+    // e deixaria uma sobra fantasma no ticker antigo, corrompendo o PM/resultado
+    // de todas as operações posteriores de ambos os tickers.
+    const opsAteEvento = ops.filter(o => o.data <= data);
+    const posNaData = computePosicoes(opsAteEvento);
+    const pAntigo   = posNaData[ticker] || p;
     const qtdConv   = pAntigo ? Math.abs(pAntigo.qtd || 0) : 0;
     const pmAntigo  = pAntigo ? (pAntigo.pmBase || 0) : 0;
 
