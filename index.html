@@ -2161,6 +2161,9 @@ let _wixSavePending = false;
 let _wixSaveTimer   = null;
 let _wixReady       = false;   // true após carregar dados do Wix
 let _wixSaveQueue   = {};      // {key: value} acumulado
+let _wixSaveInFlight = false;  // true entre o envio do WIX_SALVAR e a resposta (OK ou erro)
+let _wixLastSent     = null;   // cópia do último payload enviado, pra poder reenviar se der erro
+let _wixRetries      = 0;      // tentativas de reenvio já feitas pro payload atual
 
 // Wrapper de localStorage com suporte a Wix
 const Storage = {
@@ -2180,16 +2183,41 @@ const Storage = {
   }
 };
 
-// Debounce: salva no Wix 1,5s após o último setItem (evita spam)
+// Debounce: salva no Wix 400ms após o último setItem (evita spam a cada
+// tecla, mas é curto o bastante pra não perder nada se o usuário atualizar
+// a página logo em seguida). wixFlushSaveNow() complementa isso enviando
+// na hora quando a aba está prestes a sair/fechar — ver listeners abaixo.
 function wixFlushSave() {
   if(_wixSaveTimer) clearTimeout(_wixSaveTimer);
-  _wixSaveTimer = setTimeout(() => {
-    if(Object.keys(_wixSaveQueue).length === 0) return;
-    const payload = { tipo: 'WIX_SALVAR', dados: {..._wixSaveQueue} };
-    console.log('[WIX] Enviando WIX_SALVAR, chaves:', Object.keys(payload.dados).join(', '));
-    _wixSaveQueue = {};
-    try { (window.top||window.parent).postMessage(payload, '*'); } catch(e){ console.error('[WIX] Erro ao salvar:', e); }
-  }, 1500);
+  _wixSaveTimer = setTimeout(wixFlushSaveNow, 400);
+}
+
+// Envia imediatamente o que estiver na fila, pulando o debounce.
+function wixFlushSaveNow() {
+  if(_wixSaveTimer){ clearTimeout(_wixSaveTimer); _wixSaveTimer = null; }
+  if(!WIX_MODE || Object.keys(_wixSaveQueue).length === 0) return;
+  const payload = { tipo: 'WIX_SALVAR', dados: {..._wixSaveQueue} };
+  console.log('[WIX] Enviando WIX_SALVAR, chaves:', Object.keys(payload.dados).join(', '));
+  _wixSaveQueue = {};
+  _wixSaveInFlight = true;
+  _wixLastSent = payload.dados;
+  try { (window.top||window.parent).postMessage(payload, '*'); } catch(e){ console.error('[WIX] Erro ao salvar:', e); _wixSaveInFlight = false; }
+}
+
+// Se a aba for escondida/fechada/atualizada com algo ainda não enviado (ou já
+// enviado mas sem confirmação do Wix), tenta mandar na hora e avisa o
+// navegador pra confirmar antes de sair — evita que um F5 logo após importar
+// uma nota perca a atualização porque ela não chegou a ser salva na nuvem.
+if(WIX_MODE){
+  document.addEventListener('visibilitychange', () => {
+    if(document.visibilityState === 'hidden') wixFlushSaveNow();
+  });
+  window.addEventListener('pagehide', wixFlushSaveNow);
+  window.addEventListener('beforeunload', (e) => {
+    const pendente = _wixSaveTimer || Object.keys(_wixSaveQueue).length > 0 || _wixSaveInFlight;
+    wixFlushSaveNow();
+    if(pendente){ e.preventDefault(); e.returnValue = ''; }
+  });
 }
 
 // Receber dados do Wix ao carregar (injeção inicial de dados)
@@ -2208,9 +2236,29 @@ window.addEventListener('message', (event) => {
     console.log('[WIX] WIX_DADOS recebido, chaves:', Object.keys(msg.dados||{}).join(', '));
     const dados = msg.dados || {};
     Object.entries(dados).forEach(([k,v]) => {
-      if(v !== null && v !== undefined) {
-        localStorage.setItem(k, v);
+      if(v === null || v === undefined) return;
+      // Proteção contra "race" de F5: se a nuvem ainda não tinha recebido o
+      // último save (ex.: atualizou a página rápido demais depois de importar
+      // uma nota) e devolve uma lista de operações com MENOS itens do que já
+      // existe aqui no navegador, isso quase sempre é uma foto antiga chegando
+      // atrasada — sobrescrever apagaria operações que só existem localmente
+      // ainda não sincronizadas. Mantém o que está aqui (que é o mais completo)
+      // em vez de aceitar cegamente o que a nuvem mandou; a própria operação já
+      // fica marcada como "a sincronizar" e vai subir sozinha no próximo save.
+      if(k === KEY){
+        try {
+          const localOps = JSON.parse(localStorage.getItem(k) || '[]');
+          const remoteOps = JSON.parse(v || '[]');
+          if(Array.isArray(localOps) && Array.isArray(remoteOps) && remoteOps.length < localOps.length){
+            console.warn(`[WIX] Ignorando ${k} da nuvem (${remoteOps.length} operações) por ter menos que o local (${localOps.length}) — provável foto antiga.`);
+            if(typeof toast === 'function') toast('A última nota importada ainda não tinha sido salva na nuvem a tempo — mantive o que está aqui e vou tentar salvar de novo.', 'warn');
+            _wixSaveQueue[k] = localStorage.getItem(k);
+            wixFlushSave();
+            return;
+          }
+        } catch(e){ /* JSON inválido de algum lado — segue o fluxo normal abaixo */ }
       }
+      localStorage.setItem(k, v);
     });
     // Recarregar a página com os dados do Wix já no localStorage
     _wixReady = true;
@@ -2218,15 +2266,34 @@ window.addEventListener('message', (event) => {
   }
 
   if(msg.tipo === 'WIX_SALVO_OK') {
+    _wixSaveInFlight = false;
+    _wixLastSent = null;
+    _wixRetries = 0;
     // Confirmação de save — opcional, pode mostrar badge
     const el = document.getElementById('wix-sync-badge');
     if(el){ el.textContent = '☁ Salvo'; el.style.color = '#39ff14'; }
   }
 
   if(msg.tipo === 'WIX_ERRO') {
+    _wixSaveInFlight = false;
     console.warn('Wix save error:', msg.erro);
     const el = document.getElementById('wix-sync-badge');
     if(el){ el.textContent = '☁ Erro ao salvar'; el.style.color = '#ff3b3b'; }
+    // Devolve pra fila o que não foi salvo (sem sobrescrever algo mais novo
+    // que já tenha sido editado/enfileirado nesse meio-tempo) e tenta de novo
+    // uma vez — é a causa mais provável de "sumiu depois que atualizei a
+    // página" (o save nunca chegou a salvar na nuvem), então também avisa
+    // com um toast que não passa batido como o badge discreto.
+    Object.entries(_wixLastSent || {}).forEach(([k,v]) => { if(!(k in _wixSaveQueue)) _wixSaveQueue[k] = v; });
+    _wixLastSent = null;
+    if(_wixRetries < 1){
+      _wixRetries++;
+      if(typeof toast === 'function') toast('Não foi possível salvar na nuvem agora. Não feche nem atualize a página — tentando de novo.', 'error');
+      setTimeout(wixFlushSaveNow, 2000);
+    } else {
+      _wixRetries = 0;
+      if(typeof toast === 'function') toast('Ainda não consegui salvar na nuvem. Verifique sua conexão antes de fechar ou atualizar a página.', 'error');
+    }
   }
 });
 
