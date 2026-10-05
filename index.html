@@ -2810,9 +2810,15 @@ function computePosicoes(opsList){
     else if(op.tipo==='Venda'){
       if(p.qtd > 0){
         // Venda de posição existente (long) → calcular ganho realizado
-        p.ganhoVenda += (+op.preco - p.pmAdj)* +op.qtd - (+op.taxa||0);
+        // Perna de uma Conversão de ticker (_conversao) NÃO é venda de verdade:
+        // não realiza ganho, e o custo que sai daqui (custoTotal) entra no
+        // ativo de destino pela Compra correspondente — senão o custo
+        // histórico da carteira ficaria contado duas vezes.
+        const ehConversao = !!op._conversao;
+        if(!ehConversao) p.ganhoVenda += (+op.preco - p.pmAdj)* +op.qtd - (+op.taxa||0);
         const custoVendido = p.pmBase * +op.qtd;
         p.totalInvest = Math.max(0, p.totalInvest - custoVendido);
+        if(ehConversao) p.custoTotal = Math.max(0, (p.custoTotal||0) - custoVendido);
         p.qtd -= +op.qtd;
         if(p.qtd <= 0){
           const qtdExcedente = Math.abs(p.qtd); // parte que ficou short
@@ -2995,6 +3001,8 @@ function computePMMap(){
       p.pmAdj=p.qtd>0?nt/p.qtd:0;
     }
     else if(op.tipo==='Venda'){p.qtd-= +op.qtd;if(p.qtd<=0){p.qtd=0;p.pmAdj=0;}}
+    // Marcador de Conversão é só registro do evento — não é provento, não mexe no PM
+    else if(op.tipo==='Conversão'){}
     else{p.pmAdj=Math.max(0,p.pmAdj-(p.qtd>0?(+op.preco* +op.qtd)/p.qtd:0));}
     map[op._id]=p.pmAdj;
   }
@@ -3554,18 +3562,25 @@ function renderHistorico(pag){
     const fi=o._financeiro||{};
     // Cor da posição: verde se aumentou, vermelho se zerou, normal se parcial venda
     const posColor = posA===0 ? 'var(--red)' : o.tipo==='Compra'||o.tipo==='IPO'||o.tipo==='Bonificação'||o.tipo==='Desdobramento' ? 'var(--green)' : 'var(--text2)';
+    // Uma conversão grava 3 linhas: saída do ativo de origem (Conv. ↗), entrada
+    // no destino (Conv. ↙) e um marcador do evento. O marcador só descreve o
+    // evento (razão, ativos) — repetir qtd/valor nele fazia a mesma quantidade
+    // aparecer duas vezes. E as pernas não são dinheiro de verdade (líquido "—").
+    const ehMarcadorConv = o.tipo === 'Conversão';
+    const semValor = '<span style="color:var(--text3)">—</span>';
+    const notaTitle = String(o.nota||'').replace(/"/g,'&quot;');
     return `<tr>
       <td style="white-space:nowrap">${fmtDate(o.data)}</td>
-      <td><span class="badge ${bc}" style="font-size:10px;padding:2px 6px;${o._conversao?'opacity:.75':''}" title="${o.nota||''}">${tipoLabel}</span></td>
+      <td><span class="badge ${bc}" style="font-size:10px;padding:2px 6px;${o._conversao?'opacity:.75':''}" title="${notaTitle}">${tipoLabel}</span></td>
       <td style="white-space:nowrap"><span class="ticker-chip">${tickerLabel}</span> <button class="btn-event" onclick="abrirEventoCorporativo('${tickerRaw}','Conversão')" title="Conversão — trocar para outro ticker">⇄ Conversão</button></td>
-      <td class="mono" style="text-align:right">${fmtN(+o.qtd,0)}</td>
-      <td class="mono" style="text-align:right">${fmt(+o.preco)}</td>
-      <td class="mono" style="text-align:right">${fmt(total)}</td>
-      <td class="mono" style="text-align:right;color:${liq>=0?'var(--green)':'var(--red)'}">${fmt(liq)}</td>
-      <td class="mono" style="text-align:right;color:var(--text2);font-size:12px">${pmA>0?fmt(pmA):'—'}</td>
-      <td class="mono" style="text-align:right;font-weight:600;color:${posColor}">${posA!=null?fmtN(posA,0):'—'}</td>
+      <td class="mono" style="text-align:right">${ehMarcadorConv ? semValor : fmtN(+o.qtd,0)}</td>
+      <td class="mono" style="text-align:right">${ehMarcadorConv ? semValor : fmt(+o.preco)}</td>
+      <td class="mono" style="text-align:right">${ehMarcadorConv ? semValor : fmt(total)}</td>
+      <td class="mono" style="text-align:right;color:${liq>=0?'var(--green)':'var(--red)'}">${(ehMarcadorConv||o._conversao) ? semValor : fmt(liq)}</td>
+      <td class="mono" style="text-align:right;color:var(--text2);font-size:12px">${(!ehMarcadorConv && pmA>0)?fmt(pmA):'—'}</td>
+      <td class="mono" style="text-align:right;font-weight:600;color:${posColor}">${(!ehMarcadorConv && posA!=null)?fmtN(posA,0):'—'}</td>
       <td style="color:var(--text3);font-size:11px;white-space:nowrap">${o.corretora||'—'}</td>
-      <td style="color:var(--text3);font-size:11px">${o.nota||'—'}</td>
+      <td style="color:var(--text3);font-size:11px" title="${notaTitle}">${o.nota||'—'}</td>
       <td><button class="btn btn-sm btn-danger" onclick="excluirOp('${o._id}')" title="Excluir" style="padding:2px 6px;font-size:11px">✕</button></td>
     </tr>`;
   }).join('');
@@ -6429,9 +6444,11 @@ function calcPerformanceMensal(dataInicio) {
         p.pmAdj   = p.pmBase;
         const c   = vlr + tax;
         p.custo  += c;
-        aportes  += c;
+        // Perna de Conversão de ticker não é dinheiro novo investido
+        if(!op._conversao) aportes  += c;
       } else if(op.tipo==='Venda'){
-        ganhoVendas += (+op.preco - p.pmAdj)* +op.qtd - tax;
+        // ...nem venda de verdade: não gera ganho realizado
+        if(!op._conversao) ganhoVendas += (+op.preco - p.pmAdj)* +op.qtd - tax;
         p.qtd -= +op.qtd;
         if(p.qtd<=0){p.qtd=0;p.pmBase=0;p.pmAdj=0;}
       } else if(op.tipo==='Provento'||op.tipo==='JCP'){
@@ -12251,16 +12268,53 @@ function abrirEventoCorporativo(ticker, tipo) {
         <label style="font-size:11px;font-weight:600;color:var(--text2);text-transform:uppercase;letter-spacing:.4px">
           Valor de mercado por ação na data (R$) <span style="font-weight:400;text-transform:none;color:var(--text3)">— opcional</span>
         </label>
-        <input type="text" id="ev-valor-bonificacao" placeholder="0,00" inputmode="numeric" class="money-input"
+        <input type="text" id="ev-valor-bonificacao" placeholder="0,00" inputmode="numeric" class="money-input" oninput="fmtMoneyInput(this)"
           style="width:100%;padding:8px 12px;border:1.5px solid var(--border);border-radius:var(--radius-sm);font-size:14px;font-family:'DM Mono',monospace;margin-top:6px"/>
         <div style="font-size:11px;color:var(--text3);margin-top:4px">
           💡 Preencha para a bonificação aparecer no Relatório Anual, em Rendimentos Isentos e Não Tributáveis (declaração de IR). Sem valor, ela só ajusta a posição.
         </div>
       </div>`;
   } else {
+    // ── Conversão: corretora, quantidade, razão (ex.: 1 pra 10), ativo destino ──
+    // Corretoras em que o ativo já foi operado, a mais usada primeiro
+    const contagemCorr = {};
+    ops.forEach(o => {
+      if((o.ticker||'').toUpperCase() !== ticker) return;
+      const c = (o.corretora||'').trim();
+      if(c && c !== 'Evento corporativo') contagemCorr[c] = (contagemCorr[c]||0) + 1;
+    });
+    const corretoras = Object.keys(contagemCorr).sort((a,b) => contagemCorr[b] - contagemCorr[a]);
+    if(!corretoras.length) corretoras.push('Evento corporativo');
+    const estLabel = "font-size:11px;font-weight:600;color:var(--text2);text-transform:uppercase;letter-spacing:.4px";
+    const estCampo = "width:100%;padding:8px 12px;border:1.5px solid var(--border);border-radius:var(--radius-sm);font-size:14px;font-family:'DM Mono',monospace;margin-top:6px";
     camposExtras = `
-      <div class="form-group" style="margin-bottom:10px">
-        <label style="font-size:11px;font-weight:600;color:var(--text2);text-transform:uppercase;letter-spacing:.4px">Novo ticker</label>
+      <div class="form-group" style="margin-bottom:12px">
+        <label style="${estLabel}">Corretora</label>
+        <select id="ev-conv-corretora" style="${estCampo};font-family:inherit;font-size:13px">
+          ${corretoras.map(c => `<option value="${c.replace(/"/g,'&quot;')}">${c}</option>`).join('')}
+        </select>
+      </div>
+      <div class="form-group" style="margin-bottom:12px">
+        <label style="${estLabel}">Quantidade a converter</label>
+        <input type="number" id="ev-conv-qtd" min="0" step="any" placeholder="0" style="${estCampo}"
+          oninput="this.dataset.editado='1';previewConversao('${ticker}')"/>
+        <div id="ev-conv-posinfo" style="font-size:11px;color:var(--text3);margin-top:4px"></div>
+      </div>
+      <div class="form-group" style="margin-bottom:12px">
+        <label style="${estLabel}">Razão da conversão</label>
+        <div style="display:flex;align-items:center;gap:8px;margin-top:6px">
+          <input type="number" id="ev-conv-razao-de" min="0" step="any" value="1" style="${estCampo};margin-top:0;flex:1;text-align:right"
+            oninput="previewConversao('${ticker}')"/>
+          <span style="font-size:13px;color:var(--text2)">pra</span>
+          <input type="number" id="ev-conv-razao-para" min="0" step="any" value="1" style="${estCampo};margin-top:0;flex:1;text-align:right"
+            oninput="previewConversao('${ticker}')"/>
+        </div>
+        <div style="font-size:11px;color:var(--text3);margin-top:4px">
+          1 pra 1 = só troca o ticker · 1 pra 10 = cada ação vira 10 · 10 pra 1 = cada 10 viram 1
+        </div>
+      </div>
+      <div class="form-group" style="margin-bottom:12px">
+        <label style="${estLabel}">Ativo destino (novo ticker)</label>
         <div style="display:flex;gap:8px;margin-top:6px">
           <input type="text" id="ev-novo-ticker" placeholder="Ex: BBDC4"
             style="flex:1;padding:8px 12px;border:1.5px solid var(--border);border-radius:var(--radius-sm);font-size:14px;font-family:'DM Mono',monospace;text-transform:uppercase"
@@ -12268,20 +12322,19 @@ function abrirEventoCorporativo(ticker, tipo) {
           <button class="btn btn-sm" onclick="buscarCotacaoConversao('${ticker}')" title="Buscar cotação atual do novo ativo">🔍 Buscar</button>
         </div>
       </div>
-      <div class="form-group" style="margin-bottom:10px">
-        <label style="font-size:11px;font-weight:600;color:var(--text2);text-transform:uppercase;letter-spacing:.4px">
-          Preço do novo ativo na data da conversão (R$)
-          <span style="font-weight:400;text-transform:none;color:var(--text3)"> — usado para recalcular o PM</span>
+      <div class="form-group" style="margin-bottom:12px">
+        <label style="${estLabel}">
+          Preço do novo ativo (R$)
+          <span style="font-weight:400;text-transform:none;color:var(--text3)"> — opcional</span>
         </label>
-        <input type="text" id="ev-preco-novo" placeholder="0,00" inputmode="numeric" class="money-input"
-          style="width:100%;padding:8px 12px;border:1.5px solid var(--border);border-radius:var(--radius-sm);font-size:14px;font-family:'DM Mono',monospace;margin-top:6px"
-          oninput="previewConversao('${ticker}')"/>
+        <input type="text" id="ev-preco-novo" placeholder="0,00" inputmode="numeric" class="money-input" style="${estCampo}"
+          oninput="fmtMoneyInput(this);previewConversao('${ticker}')"/>
         <div style="font-size:11px;color:var(--text3);margin-top:4px">
-          💡 Se o novo ativo tem preço diferente do antigo, o PM será ajustado proporcionalmente.
-          Deixe em branco para manter o custo histórico sem ajuste de PM.
+          💡 Deixe em branco para manter o custo total da posição (o PM se ajusta à razão) — é o correto para o IR.
+          Preencha só se quiser que o novo ativo comece com esse custo por ação.
         </div>
       </div>
-      <div id="ev-conv-preview" style="font-size:12px;padding:10px 14px;background:var(--surface2);border-radius:var(--radius-sm);margin-bottom:4px;display:none"></div>`;
+      <div id="ev-conv-preview" style="font-size:12px;padding:10px 14px;background:var(--surface2);border-radius:var(--radius-sm);margin-bottom:4px;line-height:1.55"></div>`;
   }
 
   modal.innerHTML = `
@@ -12290,7 +12343,7 @@ function abrirEventoCorporativo(ticker, tipo) {
         <div>
           <div style="font-size:16px;font-weight:600">${icone} ${tipo}</div>
           <div style="font-size:12px;color:var(--text3);margin-top:2px">Ativo: <strong style="font-family:'DM Mono',monospace">${ticker}</strong>
-            ${isDescoberto ? ` · <span style="color:var(--red)">⚠ ${fmtN(Math.abs(qtdAtual),0)} ações vendidas a descoberto</span>` : semPosicao ? ' · <span style="color:var(--text3)">sem posição atual</span>' : ` · ${fmtN(qtdAtual,0)} ações em carteira`}
+            ${isDescoberto ? ` · <span style="color:var(--red)">⚠ ${fmtN(Math.abs(qtdAtual),0)} ações vendidas a descoberto</span>` : semPosicao ? ' · <span style="color:var(--text3)">sem posição atual</span>' : ` · ${fmtN(qtdAtual,0)} ações em carteira${isConversao ? ' hoje' : ''}`}
           </div>
           ${isDescoberto || semPosicao ? `<div style="font-size:11px;color:var(--amber);background:var(--amber-bg);border:1px solid var(--amber);border-radius:6px;padding:7px 10px;margin-top:8px;line-height:1.5">
             ℹ️ ${isDescoberto ? 'Posição vendida a descoberto — o evento será registrado e ajustará as operações anteriores.' : 'Sem posição atual — o evento será registrado historicamente para corrigir o saldo.'}
@@ -12321,6 +12374,7 @@ function abrirEventoCorporativo(ticker, tipo) {
     const inp = document.getElementById('ev-fator') || document.getElementById('ev-qtd-bonificacao') || document.getElementById('ev-novo-ticker');
     inp?.focus();
     previewEvento(ticker, tipo);
+    if (isConversao) previewConversao(ticker);
   }, 100);
 }
 
@@ -12336,7 +12390,7 @@ async function buscarCotacaoConversao(tickerAntigo) {
     if (m?.regularMarketPrice) {
       const precoInput = document.getElementById('ev-preco-novo');
       if (precoInput) {
-        precoInput.value = m.regularMarketPrice.toFixed(2);
+        setMoneyVal(precoInput, m.regularMarketPrice);
         previewConversao(tickerAntigo);
       }
       toast(`Cotação de ${novoTk}: ${fmt(m.regularMarketPrice)}`);
@@ -12350,53 +12404,89 @@ async function buscarCotacaoConversao(tickerAntigo) {
   }
 }
 
+// Lê o formulário de Conversão e calcula tudo: posição na data, quantidade,
+// razão, quantidade resultante, custo e PM. A prévia e a confirmação usam
+// ESTA função — assim o que aparece na tela é exatamente o que será gravado.
+function calcConversaoForm(tickerAntigo) {
+  const campo      = id => document.getElementById(id);
+  const dataEvento = campo('ev-data')?.value || '';
+  const novoTk     = (campo('ev-novo-ticker')?.value || '').toUpperCase().trim();
+
+  // Posição do ativo de origem NA DATA DO EVENTO (não a de hoje): se houver
+  // operações dele depois dessa data, usar a posição atual converteria a
+  // quantidade errada.
+  const posData  = dataEvento ? computePosicoes(ops.filter(o => o.data <= dataEvento)) : computePosicoes();
+  const pAt      = posData[tickerAntigo];
+  const posQtd   = pAt ? Math.max(0, pAt.qtd || 0) : 0;
+  const pmAntigo = pAt ? (pAt.pmBase || 0) : 0;
+
+  const qtdTxt    = (campo('ev-conv-qtd')?.value ?? '').trim();
+  const qtdConv   = qtdTxt === '' ? posQtd : (parseFloat(qtdTxt) || 0);
+  const razaoDe   = parseFloat(campo('ev-conv-razao-de')?.value)   || 0;
+  const razaoPara = parseFloat(campo('ev-conv-razao-para')?.value) || 0;
+  const precoOverride = getMoneyVal(campo('ev-preco-novo'));
+
+  // Cada `razaoDe` ações de origem viram `razaoPara` do destino. Não existe
+  // fração de ação em bolsa: arredonda pra baixo.
+  const qtdNovaExata = razaoDe > 0 ? qtdConv * razaoPara / razaoDe : 0;
+  const qtdNova      = Math.floor(qtdNovaExata + 1e-9);
+  // Custo que sai da origem (PM × qtd) e que entra no destino: mantido, a
+  // menos que o usuário informe um preço do novo ativo.
+  const custoOrigem  = qtdConv * pmAntigo;
+  const custoDestino = precoOverride > 0 ? precoOverride * qtdNova : custoOrigem;
+  const pmNovo       = qtdNova > 0 ? custoDestino / qtdNova : 0;
+
+  let erro = '';
+  if (!novoTk)                          erro = 'Informe o ativo destino (novo ticker)';
+  else if (novoTk === tickerAntigo)     erro = 'O ativo destino deve ser diferente do atual';
+  else if (!(qtdConv > 0))              erro = posQtd > 0 ? 'Informe a quantidade a converter' : 'Posição zerada nessa data — nada a converter';
+  else if (qtdConv > posQtd + 1e-9)     erro = `A quantidade (${fmtN(qtdConv,0)}) é maior que a posição de ${tickerAntigo} nessa data (${fmtN(posQtd,0)})`;
+  else if (!(razaoDe > 0) || !(razaoPara > 0)) erro = 'Informe a razão da conversão (ex.: 1 pra 1)';
+  else if (!(qtdNova > 0))              erro = 'Com essa razão a quantidade resultante é zero';
+
+  return { dataEvento, novoTk, posQtd, pmAntigo, qtdConv, razaoDe, razaoPara, precoOverride,
+           qtdNovaExata, qtdNova, custoOrigem, custoDestino, pmNovo, erro };
+}
+
 function previewConversao(tickerAntigo) {
-  const novoTk    = (document.getElementById('ev-novo-ticker')?.value||'').toUpperCase().trim();
-  const precoNovo = parseFloat(document.getElementById('ev-preco-novo')?.value) || 0;
-  const dataEvento = document.getElementById('ev-data')?.value;
-  const prevEl    = document.getElementById('ev-conv-preview');
+  const prevEl = document.getElementById('ev-conv-preview');
   if (!prevEl) return;
 
-  // Posição NA DATA DO EVENTO — precisa bater com o que confirmarEvento() vai
-  // realmente converter, senão a prévia mostra uma quantidade e o resultado
-  // aplicado é outro (ver comentário em confirmarEvento).
-  const pos    = dataEvento ? computePosicoes(ops.filter(o => o.data <= dataEvento)) : computePosicoes();
-  const p      = pos[tickerAntigo];
-  if (!p || !novoTk) { prevEl.style.display='none'; return; }
+  let c = calcConversaoForm(tickerAntigo);
 
-  const pmAtual = p.pmBase;
-  const qtd     = p.qtd;
-
-  if (!precoNovo) {
-    prevEl.style.display = 'block';
-    prevEl.innerHTML = `
-      <div style="color:var(--text2)">
-        <strong>${tickerAntigo} → ${novoTk}</strong><br>
-        ${fmtN(qtd,0)} ações · PM atual: <strong>${fmt(pmAtual)}</strong><br>
-        <span style="color:var(--amber)">⚠ Sem preço informado: PM mantido em ${fmt(pmAtual)} (custo histórico)</span>
-      </div>`;
-    return;
+  // Enquanto o usuário não digitou a quantidade, sugere a posição na data do evento
+  const qtdEl = document.getElementById('ev-conv-qtd');
+  if (qtdEl && qtdEl.dataset.editado !== '1') {
+    qtdEl.value = c.posQtd > 0 ? String(c.posQtd) : '';
+    c = calcConversaoForm(tickerAntigo);
   }
+  const infoEl = document.getElementById('ev-conv-posinfo');
+  if (infoEl) infoEl.textContent = c.dataEvento
+    ? `Posição de ${tickerAntigo} em ${fmtDate(c.dataEvento)}: ${fmtN(c.posQtd,0)} ações · PM ${fmt(c.pmAntigo)}`
+    : '';
 
-  const pmNovo     = precoNovo;
-  const custoAtual = pmAtual * qtd;
-  const custoNovo  = pmNovo  * qtd;
-  const dif        = custoNovo - custoAtual;
-  const difPct     = custoAtual > 0 ? (dif/custoAtual*100) : 0;
+  const destino  = c.novoTk || 'ativo destino';
+  const razaoTxt = `${fmtN(c.razaoDe,0)} para ${fmtN(c.razaoPara,0)}`;
+  const mudaCusto = c.precoOverride > 0 && Math.abs(c.custoDestino - c.custoOrigem) > 0.005;
+  const fracao = c.qtdNovaExata - c.qtdNova > 1e-9;
+  // Só reclama de erro depois que o usuário já informou o destino (senão a
+  // mensagem "informe o ativo destino" aparece assim que o modal abre)
+  const mostrarErro = c.erro && (c.novoTk || !/destino/.test(c.erro));
 
-  prevEl.style.display = 'block';
   prevEl.innerHTML = `
-    <div>
-      <div style="font-weight:600;color:var(--text);margin-bottom:6px">${tickerAntigo} → ${novoTk} · ${fmtN(qtd,0)} ações</div>
-      <div style="display:grid;grid-template-columns:1fr 1fr 1fr;gap:8px;font-size:12px">
-        <div><div style="color:var(--text3);font-size:10px;text-transform:uppercase">PM antigo</div>
-             <div style="font-family:'DM Mono',monospace;text-decoration:line-through;color:var(--text3)">${fmt(pmAtual)}</div></div>
-        <div><div style="color:var(--text3);font-size:10px;text-transform:uppercase">PM novo</div>
-             <div style="font-family:'DM Mono',monospace;color:var(--blue);font-weight:600">${fmt(pmNovo)}</div></div>
-        <div><div style="color:var(--text3);font-size:10px;text-transform:uppercase">Ajuste custo</div>
-             <div style="font-family:'DM Mono',monospace;color:${dif>=0?'var(--red)':'var(--green)'}">${dif>=0?'+':''}${fmt(dif)} (${difPct>=0?'+':''}${difPct.toFixed(1)}%)</div></div>
-      </div>
-    </div>`;
+    <div style="font-weight:600;color:var(--text);margin-bottom:4px">Resultado</div>
+    <div style="color:var(--text2)">
+      ${fmtN(c.qtdConv,0)} ações <strong>${tickerAntigo}</strong> serão convertidas na razão de ${razaoTxt},
+      totalizando <strong>${fmtN(c.qtdNova,0)}</strong> ações <strong>${destino}</strong> após a conversão.
+    </div>
+    <div style="color:var(--text3);margin-top:4px;font-size:11px">
+      Custo total ${mudaCusto
+        ? `ajustado: ${fmt(c.custoOrigem)} → <strong style="color:var(--text)">${fmt(c.custoDestino)}</strong>`
+        : `mantido: <strong style="color:var(--text)">${fmt(c.custoOrigem)}</strong>`}
+      · PM: ${fmt(c.pmAntigo)} → <strong style="color:var(--blue)">${fmt(c.pmNovo)}</strong>
+    </div>
+    ${fracao ? `<div style="color:var(--amber);margin-top:4px;font-size:11px">⚠ A razão gera fração (${fmtN(c.qtdNovaExata,2)} ações): arredondado para baixo, ${fmtN(c.qtdNova,0)}.</div>` : ''}
+    ${mostrarErro ? `<div style="color:var(--red);margin-top:4px;font-size:11px">⚠ ${c.erro}</div>` : ''}`;
 }
 
 function previewEvento(ticker, tipo) {
@@ -12429,6 +12519,15 @@ function confirmarEvento(ticker, tipo) {
   const data  = document.getElementById('ev-data')?.value;
   if (!data) { toast('Informe a data do evento', 'warn'); return; }
 
+  // Fecha o modal e redesenha as telas afetadas — inclusive o Histórico, já
+  // que o evento também pode ser aplicado pelo botão da própria tabela dele.
+  const atualizarTelas = () => {
+    document.getElementById('modal-evento-corp')?.remove();
+    renderPosicoes();
+    renderDashboard();
+    if (document.getElementById('hist-tbody')) renderHistorico();
+  };
+
   const pos  = computePosicoes();
   const p    = pos[ticker];
   // Permitir eventos em posições negativas (descoberto) e sem posição (histórico)
@@ -12448,86 +12547,52 @@ function confirmarEvento(ticker, tipo) {
       corretora: 'Evento corporativo',
     });
     save();
-    document.getElementById('modal-evento-corp')?.remove();
-    renderPosicoes();
-    renderDashboard();
+    atualizarTelas();
     toast(`${tipo} de ${ticker} (fator ${fator}×) registrado!`);
 
   } else if (tipo === 'Conversão') {
-    const novoTk    = (document.getElementById('ev-novo-ticker')?.value||'').toUpperCase().trim();
-    const precoNovo = parseFloat(document.getElementById('ev-preco-novo')?.value) || 0;
+    // Tudo (posição NA DATA do evento, quantidade, razão, custo) vem de
+    // calcConversaoForm — a mesma conta que a prévia do modal mostra.
+    const c = calcConversaoForm(ticker);
+    if (c.erro) { toast(c.erro, 'warn'); return; }
+    const corretora = document.getElementById('ev-conv-corretora')?.value || 'Evento corporativo';
 
-    if (!novoTk)            { toast('Informe o novo ticker', 'warn'); return; }
-    if (novoTk === ticker)  { toast('O novo ticker deve ser diferente', 'warn'); return; }
+    snapshot(`Conversão ${ticker} → ${c.novoTk}`);
 
-    snapshot(`Conversão ${ticker} → ${novoTk}`);
-
-    // Obter posição do ticker antigo NA DATA DO EVENTO (não a posição de hoje!)
-    // — se o evento for retroativo e existirem operações do ticker antigo
-    // depois dessa data, usar a posição atual converteria a quantidade errada
-    // e deixaria uma sobra fantasma no ticker antigo, corrompendo o PM/resultado
-    // de todas as operações posteriores de ambos os tickers.
-    const opsAteEvento = ops.filter(o => o.data <= data);
-    const posNaData = computePosicoes(opsAteEvento);
-    const pAntigo   = posNaData[ticker] || p;
-    const qtdConv   = pAntigo ? Math.abs(pAntigo.qtd || 0) : 0;
-    const pmAntigo  = pAntigo ? (pAntigo.pmBase || 0) : 0;
-
-    if (qtdConv <= 0) {
-      toast('Posição zerada — nada a converter.', 'warn');
-      return;
-    }
-
-    // ── Estratégia correta de conversão ────────────────────────────
-    // 1. Registrar VENDA do ticker antigo pelo PM atual → zera a posição sem gerar ganho/perda
-    // 2. Registrar COMPRA do ticker novo pelo preço informado (ou PM antigo se não informado)
-    // Assim o histórico de IRDM11 permanece intacto e IRIM11 começa com a posição correta.
-    const precoRef = precoNovo > 0 ? precoNovo : pmAntigo;
-
-    // 1. Venda do ticker antigo (ao PM — sem ganho nem perda)
+    // ── Como a conversão é registrada ──────────────────────────────
+    // 1. SAÍDA do ativo de origem: `qtdConv` ações pelo PM (sem ganho/perda)
+    // 2. ENTRADA no destino: `qtdNova` ações (= qtd × razão), com o custo total
+    //    da origem mantido (ou o preço informado) — preço unitário = custo / qtdNova
+    // 3. Marcador do evento, só pra histórico (não altera posição)
+    // As pernas 1 e 2 levam _conversao: os cálculos de custo histórico,
+    // aportes/ganhos e IR as tratam como transferência, não como venda/compra.
     ops.push({
-      _id: uid(),
-      tipo: 'Venda',
-      data,
-      ticker,
-      qtd: qtdConv,
-      preco: pmAntigo,
-      taxa: 0,
-      nota: `Conversão: venda de ${ticker} → ${novoTk} (evento corporativo)`,
-      corretora: 'Evento corporativo',
-      _conversao: true,   // flag para identificar nos relatórios
-    });
-
-    // 2. Compra do ticker novo (ao preço de referência)
-    ops.push({
-      _id: uid(),
-      tipo: 'Compra',
-      data,
-      ticker: novoTk,
-      qtd: qtdConv,
-      preco: precoRef,
-      taxa: 0,
-      nota: `Conversão: compra de ${novoTk} ← ${ticker} (evento corporativo)`,
-      corretora: 'Evento corporativo',
+      _id: uid(), tipo: 'Venda', data: c.dataEvento,
+      ticker, qtd: c.qtdConv, preco: c.pmAntigo, taxa: 0,
+      nota: `Conversão: venda de ${ticker} → ${c.novoTk} (evento corporativo)`,
+      corretora,
       _conversao: true,
     });
-
-    // 3. Registrar op de Conversão apenas para histórico/visual (não altera posição)
     ops.push({
-      _id: uid(), tipo: 'Conversão', data,
-      ticker, qtd: qtdConv,
-      preco: precoRef, taxa: 0,
-      nota: `Conversão de ${ticker} para ${novoTk} · ${qtdConv} cotas · PM: R$${precoRef.toFixed(2)}`,
-      corretora: 'Evento corporativo',
-      _tickerNovo: novoTk,
+      _id: uid(), tipo: 'Compra', data: c.dataEvento,
+      ticker: c.novoTk, qtd: c.qtdNova, preco: c.pmNovo, taxa: 0,
+      nota: `Conversão: compra de ${c.novoTk} ← ${ticker} (evento corporativo)`,
+      corretora,
+      _conversao: true,
+    });
+    ops.push({
+      _id: uid(), tipo: 'Conversão', data: c.dataEvento,
+      ticker, qtd: c.qtdConv, preco: c.pmNovo, taxa: 0,
+      nota: `Conversão de ${ticker} para ${c.novoTk} · ${fmtN(c.qtdConv,0)} → ${fmtN(c.qtdNova,0)} ações · razão ${fmtN(c.razaoDe,0)} pra ${fmtN(c.razaoPara,0)} · custo total ${fmt(c.custoDestino)}`,
+      corretora,
+      _tickerNovo: c.novoTk,
+      _razao: { de: c.razaoDe, para: c.razaoPara },
+      _qtdOrigem: c.qtdConv, _qtdDestino: c.qtdNova,
     });
 
     save();
-    document.getElementById('modal-evento-corp')?.remove();
-    renderPosicoes();
-    renderDashboard();
-    const pmMsg = precoNovo > 0 ? ` · PM novo: ${fmt(precoNovo)}` : ` · PM mantido: ${fmt(pmAntigo)}`;
-    toast(`Conversão registrada: ${ticker} → ${novoTk} · ${qtdConv} cotas${pmMsg}`);
+    atualizarTelas();
+    toast(`Conversão registrada: ${fmtN(c.qtdConv,0)} ${ticker} → ${fmtN(c.qtdNova,0)} ${c.novoTk} (razão ${fmtN(c.razaoDe,0)} pra ${fmtN(c.razaoPara,0)}) · PM novo: ${fmt(c.pmNovo)}`);
 
   } else if (tipo === 'Bonificação') {
     const qtdBonus = parseFloat(document.getElementById('ev-qtd-bonificacao')?.value);
@@ -12545,9 +12610,7 @@ function confirmarEvento(ticker, tipo) {
       corretora: 'Evento corporativo',
     });
     save();
-    document.getElementById('modal-evento-corp')?.remove();
-    renderPosicoes();
-    renderDashboard();
+    atualizarTelas();
     const valorMsg = valorMercado > 0 ? ` · Valor declarado: ${fmt(valorMercado*qtdBonus)}` : '';
     toast(`Bonificação de ${ticker} (+${fmtN(qtdBonus,0)} ações) registrada!${valorMsg}`);
   }
@@ -12968,6 +13031,15 @@ function calcularIRMesPuro(anoMes, prejSTAntes, prejDTAntes, prejFIIAntes) {
       p.qtd += +op.qtd;
       p.pmAdj = p.qtd>0 ? nt/p.qtd : 0;
     } else if(op.tipo==='Venda'){
+      // Perna de Conversão de ticker (_conversao) não é venda: só tira a
+      // quantidade do ativo de origem (o custo segue pro destino pela Compra
+      // correspondente). Contar como venda inflaria o volume do mês — podendo
+      // derrubar a isenção de R$ 20 mil — e geraria ganho/imposto de mentira.
+      if(op._conversao){
+        p.qtd -= +op.qtd;
+        if(p.qtd <= 0){ p.qtd = 0; }
+        continue;
+      }
       const pm     = p.pmAdj||0;
       const ganho  = (+op.preco - pm) * +op.qtd - (+op.taxa||0);
       const vlrOp  = +op.preco * +op.qtd;
@@ -14085,7 +14157,7 @@ function calcIR(ano) {
         if(op.tipo==='Compra'||op.tipo==='IPO'||op.tipo==='Bonificação'){
           const nt=p.pmAdj*p.qtd+ +op.preco* +op.qtd;p.qtd+= +op.qtd;p.pmAdj=p.qtd>0?nt/p.qtd:0;
         } else if(op.tipo==='Venda'){
-          resLiq+=(+op.preco-p.pmAdj)* +op.qtd-(+op.taxa||0);
+          if(!op._conversao) resLiq+=(+op.preco-p.pmAdj)* +op.qtd-(+op.taxa||0); // perna de Conversão não é venda
           p.qtd-= +op.qtd;if(p.qtd<=0){p.qtd=0;}
         } else if(op.tipo==='Desdobramento'){
           const f=+op.qtd;if(f>1){p.qtd=Math.round(p.qtd*f);p.pmAdj=p.qtd>0?p.pmAdj/f:0;}
@@ -14179,9 +14251,12 @@ function calcIR(ano) {
         p.pmAdj  = p.qtd>0 ? nt/p.qtd : 0;
       } else if(op.tipo==='Venda'){
         // Ganho = (preço venda − PM aquisição) × qtd − taxas
-        const g = (+op.preco - p.pmAdj) * +op.qtd - (+op.taxa||0);
-        resLiq     += g;
-        vendaBruta += +op.preco * +op.qtd;
+        // (perna de Conversão de ticker não é venda: não entra no resultado nem no volume)
+        if(!op._conversao){
+          const g = (+op.preco - p.pmAdj) * +op.qtd - (+op.taxa||0);
+          resLiq     += g;
+          vendaBruta += +op.preco * +op.qtd;
+        }
         p.qtd = Math.max(0, p.qtd - +op.qtd);
         if(p.qtd <= 0){ p.qtd=0; }
       } else if(op.tipo==='Desdobramento'){
