@@ -12916,6 +12916,26 @@ function calcularIRMes(anoMes) {
   return cadeiaIRMensal(anoMes)[anoMes];
 }
 
+// ETFs de verdade negociados na B3 (índice, renda fixa, internacionais, cripto,
+// commodities) — a mesma lista que o Relatório usa pra classificar Bens e
+// Direitos. ETF NÃO tem a isenção de R$ 20 mil das ações, e BDR também não:
+// o ganho é tributado a 15% mesmo vendendo até R$ 20 mil no mês. Units
+// (KLBN11, TAEE11, SAPR11...) continuam sendo tratadas como ação. Um ETF que
+// não esteja aqui cai como ação (e ganha a isenção por engano): é só somar o
+// ticker na lista.
+const ETFS_REAIS_IR = new Set([
+  'BOVA11','SMAL11','IVVB11','SPXI11','DIVO11','MLCX11','SMLL11',
+  'BOVB11','ECOO11','GOVE11','MATB11','UTIL11','FIND11','IFNC11',
+  'PIBB11','ISUS11','XBOV11','EMER11','GOLD11','HASH11','NFTS11',
+  'DEFI11','CRPT11','WEB311','NAVE11',
+  'IMAB11','IB5M11','IRFM11','FIXA11','IPCA11','B5P211','B5MB11',
+  'IMA11','IRF111','IRFS11',
+  'EURP11','USDB11','XINA11','ASIA11','NASD11','ACWI11',
+  'GLOB11','TECK11','SEMI11','ROBS11','ROBO11',
+  'OGLD11','WRLD11',
+]);
+const ehETFouBDR = tk => ETFS_REAIS_IR.has(tk) || /^[A-Z0-9]{4}3[2-5]$/.test(tk) || /^[A-Z0-9]{4}39$/.test(tk);
+
 function calcularIRMesPuro(anoMes, prejSTAntes, prejDTAntes, prejFIIAntes) {
   const [ano, mes] = anoMes.split('-').map(Number);
   const inicioMes = `${ano}-${String(mes).padStart(2,'0')}-01`;
@@ -12926,8 +12946,6 @@ function calcularIRMesPuro(anoMes, prejSTAntes, prejDTAntes, prejFIIAntes) {
   // ETFs conhecidos — terminam em 11 mas NÃO são FIIs
   const _ETFs_AFEC = new Set(['ACWI11','AESB11','AGRI11','ALSO11','ALUG11','ALUP11','ARGE11','ASIA11','AURO11','AUVP11','B3BR11','B5MB11','B5P211','BBOI11','BBOV11','BBSD11','BCIC11','BDEF11','BDOM11','BEST11','BIZD11','BMMT11','BOVA11','BOVB11','BOVS11','BOVV11','BOVX11','BPAC11','BRAX11','BRAZ11','BRBI11','BREW11','BRSR11','BRXC11','BULZ11','BVBR11','BXPO11','CAPE11','CASA11','CEAB11','CHIP11','CMDB11','COIN11','CORN11','CPLE11','CRPT11','CSUD11','DEFI11','DIVD11','DIVO11','DOLA11','DOLB11','DOLX11','DVER11','ECOO11','ELAS11','EMER11','ENGI11','ESGB11','EURP11','EWBZ11','FIND11','FIXA11','FIXX11','GDIV11','GENB11','GLDI11','GLDX11','GLOB11','GOLB11','GOLD11','GOLX11','GOVB11','GOVE11','GPUS11','GXUS11','HASH11','HIGH11','HTEK11','IB5M11','IBOB11','IMA11','IMAB11','IPCA11','IRF111','IRFM11','IRFS11','ISUS11','IVVB11','IVWO11','IWMI11','JOGO11','KLBN11','LVOL11','MATB11','MEAL11','MILL11','MLCX11','MODL11','MTRE11','NASD11','NAVE11','NBOV11','NDIV11','NFTS11','NSDV11','NUCL11','OGLD11','OURO11','PEVC11','PIBB11','PIPE11','PKIN11','POSI11','QLBR11','QQQI11','QQQQ11','RDNI11','REVE11','RICO11','RNEW11','ROBO11','ROBS11','SANB11','SAPR11','SCVB11','SEER11','SEMI11','SILK11','SLVR11','SMAB11','SMAC11','SMAL11','SMLL11','SPBZ11','SPUB11','SPVT11','SPXB11','SPXH11','SPXI11','SPXR11','SPYI11','SPYR11','SVAL11','TAEE11','TECK11','TECX11','TGMA11','TIET11','TIRB11','TRIG11','TRPL11','USAL11','USDB11','USTK11','UTEC11','UTIL11','UTLL11','VWRA11','WEB311','WRLD11','XBCI11','XBOV11','XINA11','XSPI11']);
   const isFIItk  = tk => /^[A-Z]{4}11$/.test(tk) && !_ETFs_AFEC.has(tk);
-  const isETFtk  = tk => ['BOVA11','SMAL11','IVVB11','HASH11','GOLD11','GOLD11F','DIVO11','FIND11','SPXI11','XFIX11','IFIX11','BBSD11','ECOO11'].includes(tk)
-                       || /^[A-Z]{4}11$/.test(tk);  // conservador: trata todos os *11 como FII/ETF sem isenção
 
   // Bonificação, desdobramento e grupamento mudam quantidade/custo médio sem
   // ser Compra/Venda. O IR precisa enxergá-los (igual à tela de Posições):
@@ -12956,7 +12974,10 @@ function calcularIRMesPuro(anoMes, prejSTAntes, prejDTAntes, prejFIIAntes) {
     // com mais venda que compra (comum em Day Trade) não deve zerar o custo
     // médio carregado para os meses seguintes.
     else if(op.tipo==='Venda'){p.qtd-= +op.qtd;if(p.qtd<=0){p.qtd=0;}}
-    else if(op.tipo==='Provento'||op.tipo==='JCP'){const vpa=p.qtd>0?(+op.preco* +op.qtd)/p.qtd:0;p.pmAdj=Math.max(0,p.pmAdj-vpa);}
+    // Dividendo/JCP/rendimento de FII NÃO reduz o custo de aquisição no IR (só
+    // reduz o "PM ajustado" que a plataforma usa pra rentabilidade). Abater aqui
+    // inflava o ganho tributável e o imposto de quem recebe proventos.
+    else if(op.tipo==='Provento'||op.tipo==='JCP'){}
     else aplicarEventoCorporativo(p, op);
   }
 
@@ -12994,7 +13015,7 @@ function calcularIRMesPuro(anoMes, prejSTAntes, prejDTAntes, prejFIIAntes) {
   let dtAcoes=0, dtOpcoes=0, dtFuturos=0;
   let fiiResult=0;
   let totalVendasST=0, totalVendasDT=0, totalVendasFII=0;
-  let irrfST=0, irrfDT=0;
+  let irrfST=0, irrfDT=0, irrfFII=0;
 
   const pmMes = JSON.parse(JSON.stringify(pmAcum));
 
@@ -13058,13 +13079,20 @@ function calcularIRMesPuro(anoMes, prejSTAntes, prejDTAntes, prejFIIAntes) {
         const lucroOp = (+op.preco - pm) * +op.qtd; // sem descontar taxa para IRRF
         if(lucroOp > 0) irrfDT += lucroOp * 0.01;
       } else if(isFII){
-        // FIIs e ETFs: 20%, sem isenção de R$20k
+        // FIIs: 20%, sem isenção de R$20k
         fiiResult   += ganho;
         totalVendasFII += vlrOp;
-        // IRRF FII: 0,005% sobre valor da venda (mesmo rate que swing trade)
-        irrfST += vlrOp * 0.00005;
+        // IRRF FII: 0,005% sobre o valor da venda — abate o imposto de FII (e
+        // não o de ações, como era antes: o crédito ia pro bolso errado)
+        irrfFII += vlrOp * 0.00005;
       } else if(isOpt){
         // Opções tratadas separadamente via calcResOpcoesMes — ignorar aqui
+      } else if(ehETFouBDR(tk)){
+        // ETFs e BDRs (swing): 15% como as ações, mas SEM a isenção de R$ 20 mil
+        // — por isso ficam em stETF, fora do volume (totalVendasST) que decide a
+        // isenção das ações e fora do ganho isento.
+        stETF += ganho;
+        irrfST += vlrOp * 0.00005;
       } else {
         // Ações swing trade: 15%, isenção para vendas totais ≤ R$20k no mês
         stAcoes += ganho;
@@ -13085,8 +13113,7 @@ function calcularIRMesPuro(anoMes, prejSTAntes, prejDTAntes, prejFIIAntes) {
       // já que uma posição em qtd=0 não pesa nada na média ponderada.
       if(p.qtd <= 0){p.qtd=0;}
     } else if(op.tipo==='Provento'||op.tipo==='JCP'){
-      const vpa = p.qtd>0 ? (+op.preco * +op.qtd)/p.qtd : 0;
-      p.pmAdj = Math.max(0, p.pmAdj - vpa);
+      // não mexe no custo de aquisição (ver comentário no cálculo do PM acumulado acima)
     } else {
       aplicarEventoCorporativo(p, op);
     }
@@ -13101,10 +13128,11 @@ function calcularIRMesPuro(anoMes, prejSTAntes, prejDTAntes, prejFIIAntes) {
   const fiiTotal = fiiResult;
 
   // ── Isenção swing trade: vendas totais de AÇÕES ≤ R$20.000 ───
-  // (ETFs e opções não têm isenção de R$20k)
+  // (ETFs, BDRs e opções não têm isenção de R$20k — por isso o volume de ETF/BDR
+  // nem entra em totalVendasST, e o ganho deles fica em stETF)
   const totalVendasAcoesST = totalVendasST; // já separado acima
   const isento = (totalVendasAcoesST <= 20000) && stAcoes > 0 && stOpcoes <= 0;
-  // Se isento: ganho de ações não entra na base, mas opções ST ainda tributam
+  // Se isento: ganho de ações não entra na base, mas opções e ETFs/BDRs ainda tributam
   const stBaseCalcAcoes = isento ? 0 : stAcoes;
   const stBaseCalc = Math.max(0, (stBaseCalcAcoes + stOpcoes + stETF) - prejSTAntes);
   const dtBaseCalc = dtTotal > 0 ? Math.max(0, dtTotal - prejDTAntes) : dtTotal;
@@ -13116,10 +13144,12 @@ function calcularIRMesPuro(anoMes, prejSTAntes, prejDTAntes, prejFIIAntes) {
   const irFIIBruto = fiiBaseCalc> 0 ? fiiBaseCalc* 0.20 : 0;
 
   // ── Deduzir IRRF (limitado ao imposto bruto de cada categoria) ─
-  // IRRF ST deduz do IR ST; IRRF DT deduz do IR DT
-  const irSTFinal  = isento ? 0 : Math.max(0, irSTBruto  - irrfST);
+  // IRRF ST deduz do IR ST; IRRF DT deduz do IR DT; IRRF FII deduz do IR FII
+  // (sem "isento ? 0": numa venda isenta de ações a base já é zero, a menos que
+  // haja ganho de ETF/BDR no mês — esse continua tributável)
+  const irSTFinal  = Math.max(0, irSTBruto  - irrfST);
   const irDTFinal  = Math.max(0, irDTBruto  - irrfDT);
-  const irFIIFinal = irFIIBruto; // FII: IRRF de 0,005% não costuma ser gerado pelo app
+  const irFIIFinal = Math.max(0, irFIIBruto - irrfFII);
 
   const totalIRFinal = irSTFinal + irDTFinal + irFIIFinal;
 
@@ -13147,7 +13177,7 @@ function calcularIRMesPuro(anoMes, prejSTAntes, prejDTAntes, prejFIIAntes) {
     // Bases de cálculo (após compensar prejuízo)
     stBaseCalc, dtBaseCalc, fiiBaseCalc,
     // IRRF retido
-    irrfST, irrfDT,
+    irrfST, irrfDT, irrfFII,
     // Volumes de venda
     totalVendasST, totalVendasDT, totalVendasFII,
     // Imposto devido antes de abater o IRRF
@@ -13238,6 +13268,7 @@ function renderCalculadoraIR(mesSelecionado) {
     <div class="darf-card">
       <div class="darf-card-title">Swing Trade <span class="darf-aliq">15%</span></div>
       <div class="darf-row"><span class="darf-row-label">Mercado à vista — ações</span><span class="darf-row-val ${cls(d.stAcoes)}">${fmtLiq(d.stAcoes)}</span></div>
+      ${d.stETF !== 0 ? `<div class="darf-row"><span class="darf-row-label">Mercado à vista — ETFs e BDRs <span style="color:var(--text3);font-weight:400">(sem isenção)</span></span><span class="darf-row-val ${cls(d.stETF)}">${fmtLiq(d.stETF)}</span></div>` : ''}
       <div class="darf-row"><span class="darf-row-label">Mercado de opções</span><span class="darf-row-val ${cls(d.stOpcoes)}">${fmtLiq(d.stOpcoes)}</span></div>
       <div class="darf-row"><span class="darf-row-label">Resultado líquido do mês</span><span class="darf-row-val ${cls(d.stTotal)}">${fmtLiq(d.stTotal)}</span></div>
       <div class="darf-row"><span class="darf-row-label">Prejuízo meses anteriores</span><span class="darf-row-val gray">−${fmt2(d.prejSTAntes)}</span></div>
@@ -13282,6 +13313,7 @@ function renderCalculadoraIR(mesSelecionado) {
         <span class="darf-row-val ${cls(d.fiiBaseCalc)}" style="font-size:15px">${fmtLiq(d.fiiBaseCalc)}</span>
       </div>
       <div class="darf-row"><span class="darf-row-label">Alíquota</span><span class="darf-row-val gray">20%</span></div>
+      <div class="darf-row"><span class="darf-row-label">IRRF retido (0,005%)</span><span class="darf-row-val gray">−${fmt2(d.irrfFII)}</span></div>
       <div class="darf-row"><span class="darf-row-label" style="font-weight:600">Imposto devido</span>
         <span class="darf-row-val ${d.irFII>0?'pos':'gray'}" style="font-size:15px;font-weight:600">${fmt2(d.irFII)}</span></div>
       <div class="darf-row"><span class="darf-row-label">Prejuízo a compensar</span><span class="darf-row-val gray">${fmt2(d.novoPrejFII)}</span></div>
@@ -14018,33 +14050,6 @@ function calcIR(ano) {
   const MESES = ['JANEIRO','FEVEREIRO','MARÇO','ABRIL','MAIO','JUNHO',
                  'JULHO','AGOSTO','SETEMBRO','OUTUBRO','NOVEMBRO','DEZEMBRO'];
 
-  // ETFs e Units (ações com código terminado em 11 que NÃO são FIIs)
-  // Inclui: ETFs de índice/renda fixa/cripto + Units (UNT) de ações ordinárias
-  const ETFs_SET = new Set([
-    'ACWI11',    'AESB11',    'AGRI11',    'ALSO11',    'ALUG11',    'ALUP11',    'ARGE11',    'ASIA11',
-    'AURO11',    'AUVP11',    'B3BR11',    'B5MB11',    'B5P211',    'BBOI11',    'BBOV11',    'BBSD11',
-    'BCIC11',    'BDEF11',    'BDOM11',    'BEST11',    'BIZD11',    'BMMT11',    'BOVA11',    'BOVB11',
-    'BOVS11',    'BOVV11',    'BOVX11',    'BPAC11',    'BRAX11',    'BRAZ11',    'BRBI11',    'BREW11',
-    'BRSR11',    'BRXC11',    'BULZ11',    'BVBR11',    'BXPO11',    'CAPE11',    'CASA11',    'CEAB11',
-    'CHIP11',    'CMDB11',    'COIN11',    'CORN11',    'CPLE11',    'CRPT11',    'CSUD11',    'DEFI11',
-    'DIVD11',    'DIVO11',    'DOLA11',    'DOLB11',    'DOLX11',    'DVER11',    'ECOO11',    'ELAS11',
-    'EMER11',    'ENGI11',    'ESGB11',    'EURP11',    'EWBZ11',    'FIND11',    'FIXA11',    'FIXX11',
-    'GDIV11',    'GENB11',    'GLDI11',    'GLDX11',    'GLOB11',    'GOLB11',    'GOLD11',    'GOLX11',
-    'GOVB11',    'GOVE11',    'GPUS11',    'GXUS11',    'HASH11',    'HIGH11',    'HTEK11',    'IB5M11',
-    'IBOB11',    'IMA11',    'IMAB11',    'IPCA11',    'IRF111',    'IRFM11',    'IRFS11',    'ISUS11',
-    'IVVB11',    'IVWO11',    'IWMI11',    'JOGO11',    'KLBN11',    'LVOL11',    'MATB11',    'MEAL11',
-    'MILL11',    'MLCX11',    'MODL11',    'MTRE11',    'NASD11',    'NAVE11',    'NBOV11',    'NDIV11',
-    'NFTS11',    'NSDV11',    'NUCL11',    'OGLD11',    'OURO11',    'PEVC11',    'PIBB11',    'PIPE11',
-    'PKIN11',    'POSI11',    'QLBR11',    'QQQI11',    'QQQQ11',    'RDNI11',    'REVE11',    'RICO11',
-    'RNEW11',    'ROBO11',    'ROBS11',    'SANB11',    'SAPR11',    'SCVB11',    'SEER11',    'SEMI11',
-    'SILK11',    'SLVR11',    'SMAB11',    'SMAC11',    'SMAL11',    'SMLL11',    'SPBZ11',    'SPUB11',
-    'SPVT11',    'SPXB11',    'SPXH11',    'SPXI11',    'SPXR11',    'SPYI11',    'SPYR11',    'SVAL11',
-    'TAEE11',    'TECK11',    'TECX11',    'TGMA11',    'TIET11',    'TIRB11',    'TRIG11',    'TRPL11',
-    'USAL11',    'USDB11',    'USTK11',    'UTEC11',    'UTIL11',    'UTLL11',    'VWRA11',    'WEB311',
-    'WRLD11',    'XBCI11',    'XBOV11',    'XINA11',    'XSPI11',
-  ]);
-  const isFIIou = tk => /^[A-Z]{4}11$/.test(tk) && !ETFs_SET.has(tk); // FII ou FIAGRO
-
   // Apuração mensal do ano vinda da MESMA cadeia que a Calculadora de IR usa
   // (ver cadeiaIRMensal): isenção de R$ 20 mil, base, IRRF, imposto e prejuízo
   // a carregar já chegam decididos de lá. Este relatório só EXIBE — nunca
@@ -14058,6 +14063,7 @@ function calcIR(ano) {
     return {
       mes,
       resVista:     +ap.stAcoes.toFixed(2),
+      resETF:       +ap.stETF.toFixed(2),
       resOpcoes:    +ap.stOpcoes.toFixed(2),
       resDT:        +ap.dtTotal.toFixed(2),
       vendaBruta:   +ap.totalVendasST.toFixed(2),
@@ -14099,175 +14105,22 @@ function calcIR(ano) {
   // 0, padrão do registro manual) não há o que declarar em Rendimentos Isentos.
   const bonificacoes    = Object.entries(bonificacoesPorEmpresa).map(([tk,v])=>({ticker:tk,valor:+v.toFixed(2)})).filter(b=>b.valor>0);
 
-  // ── Prejuízo de FII/FIAGRO acumulado de anos anteriores ao declarado ──
-  // Regra: prejuízo de renda variável compensa lucros futuros indefinidamente
-  // (não prescreve) — deve ser carregado de ano para ano.
-  // Comuns e day-trade NÃO passam por aqui: o prejuízo deles que entra em
-  // janeiro vem da cadeia mensal (apuracao[0].prejSTAntes / prejDTAntes), o
-  // mesmo que a Calculadora de IR mostra. FII segue com cálculo próprio.
-  function calcPrejFIIAcumAteAno(anoLimite) {
-    let prejFII = 0;
-    const anosOps = ops.map(o => +(o.data||'9999').slice(0,4)).filter(a=>a>1990&&a<anoLimite);
-    if(!anosOps.length) return 0;
-    const primeiroAno = Math.min(...anosOps);
-    for(let a = primeiroAno; a < anoLimite; a++) {
-      calcRVFIIAno(a, optTk, opsSorted, isFIIou).forEach(r => {
-        const base = r.resLiq - prejFII;
-        if(base < 0) prejFII = Math.abs(base);
-        else          prejFII = 0;
-      });
-    }
-    return prejFII;
-  }
-
-  function calcRVFIIAno(a, optTk, opsSorted, isFIIou) {
-    const meses = ['JAN','FEV','MAR','ABR','MAI','JUN','JUL','AGO','SET','OUT','NOV','DEZ'];
-    return meses.map((mes, mi) => {
-      const m = (mi+1).toString().padStart(2,'0');
-      const inicioMes = `${a}-${m}-01`;
-      const fimMes    = new Date(a, mi+1, 0).toISOString().slice(0,10);
-      // PM base FII para IR — sem redução por proventos
-      const pmFII={};
-      for(const op of opsSorted.filter(o=>o.data<inicioMes)){
-        const tk=(op.ticker||'').toUpperCase(); if(!isFIIou(tk)) continue;
-        if(!pmFII[tk]) pmFII[tk]={qtd:0,pmAdj:0};
-        const p=pmFII[tk];
-        if(op.tipo==='Compra'||op.tipo==='IPO'||op.tipo==='Bonificação'){const nt=p.pmAdj*p.qtd+ +op.preco* +op.qtd;p.qtd+= +op.qtd;p.pmAdj=p.qtd>0?nt/p.qtd:0;}
-        // FII não tem opção — sem exceção aqui: nunca zerar pmAdj por causa
-        // de sobra negativa (mesmo motivo do bloco de ações acima).
-        else if(op.tipo==='Venda'){p.qtd-= +op.qtd;if(p.qtd<=0){p.qtd=0;}}
-        else if(op.tipo==='Desdobramento'){const f=+op.qtd;if(f>1){p.qtd=Math.round(p.qtd*f);p.pmAdj=p.qtd>0?p.pmAdj/f:0;}}
-        else if(op.tipo==='Grupamento'){const f=+op.qtd;if(f>1){p.qtd=Math.round(p.qtd/f);p.pmAdj=p.qtd>0?p.pmAdj*f:0;}}
-      }
-      let resLiq=0;
-      // Ordena cronologicamente (compras antes de vendas em datas iguais) para que uma
-      // compra e venda no MESMO mês atualizem o custo médio antes do cálculo do ganho.
-      const opsDoMes = opsSorted
-        .filter(o=>o.data>=inicioMes&&o.data<=fimMes)
-        .slice()
-        .sort((x,y)=>{
-          if(x.data!==y.data) return x.data<y.data?-1:1;
-          const rx = x.tipo==='Venda'?1:0, ry = y.tipo==='Venda'?1:0;
-          return rx-ry;
-        });
-      for(const op of opsDoMes){
-        const tk=(op.ticker||'').toUpperCase(); if(!isFIIou(tk)) continue;
-        if(!pmFII[tk]) pmFII[tk]={qtd:0,pmAdj:0};
-        const p=pmFII[tk];
-        if(op.tipo==='Compra'||op.tipo==='IPO'||op.tipo==='Bonificação'){
-          const nt=p.pmAdj*p.qtd+ +op.preco* +op.qtd;p.qtd+= +op.qtd;p.pmAdj=p.qtd>0?nt/p.qtd:0;
-        } else if(op.tipo==='Venda'){
-          if(!op._conversao) resLiq+=(+op.preco-p.pmAdj)* +op.qtd-(+op.taxa||0); // perna de Conversão não é venda
-          p.qtd-= +op.qtd;if(p.qtd<=0){p.qtd=0;}
-        } else if(op.tipo==='Desdobramento'){
-          const f=+op.qtd;if(f>1){p.qtd=Math.round(p.qtd*f);p.pmAdj=p.qtd>0?p.pmAdj/f:0;}
-        } else if(op.tipo==='Grupamento'){
-          const f=+op.qtd;if(f>1){p.qtd=Math.round(p.qtd/f);p.pmAdj=p.qtd>0?p.pmAdj*f:0;}
-        }
-      }
-      return {resLiq:+resLiq.toFixed(2)};
-    });
-  }
-
-  // Prejuízo que entra em janeiro de `ano`
+  // ── Prejuízo que entra em janeiro de `ano` e resultado de FII mês a mês ──
+  // Comuns, day-trade E FII vêm da cadeia mensal (a mesma da Calculadora de
+  // IR): o prejuízo que entra em janeiro é o "prejuízo meses anteriores" que a
+  // Calculadora mostra, e o resultado/IRRF de FII de cada mês é o dela — nada
+  // é recalculado aqui. Regras de FII: alíquota 20%, sem isenção de R$ 20 mil,
+  // prejuízo compensa só FII, IRRF de 0,005% s/ vendas abate o imposto de FII.
   const prejAnterior = {
     prejComum: apuracao[0].prejSTAntes,
     prejDT:    apuracao[0].prejDTAntes,
-    prejFII:   calcPrejFIIAcumAteAno(ano),
+    prejFII:   apuracao[0].prejFIIAntes,
   };
-
-  // ── Renda Variável FII / FIAGRO mês a mês ─────────────────────
-  // Regras: alíquota 20%, sem isenção R$20k, prejuízo compensa só FII/FIAGRO
-  // DARF cód. 6015, IR fonte 0,005% s/ vendas brutas
-  // ETFs_SET e isFIIou definidos acima
-
-  // ── Renda Variável FII/FIAGRO — PM incremental (mais eficiente e correto) ──
-  // Calcular PM acumulado uma vez de forma incremental, guardando snapshot mensal
-  {
-    const _pmFII = {}; // PM acumulado por ticker
-    const _snapshots = []; // snapshot do PM no início de cada mês
-    const _opsFIIsorted = opsSorted.filter(o => isFIIou((o.ticker||'').toUpperCase()));
-    let _oi = 0;
-
-    for(let mi = 0; mi < 12; mi++){
-      const m = (mi+1).toString().padStart(2,'0');
-      const inicioMes = `${ano}-${m}-01`;
-      // Avançar ops de FII anteriores ao início do mês
-      while(_oi < _opsFIIsorted.length && _opsFIIsorted[_oi].data < inicioMes){
-        const op = _opsFIIsorted[_oi++];
-        const tk = (op.ticker||'').toUpperCase();
-        if(!_pmFII[tk]) _pmFII[tk] = {qtd:0, pmAdj:0};
-        const p = _pmFII[tk];
-        if(op.tipo==='Compra'||op.tipo==='IPO'||op.tipo==='Bonificação'){
-          const nt = p.pmAdj*p.qtd + +op.preco* +op.qtd;
-          p.qtd   += +op.qtd;
-          p.pmAdj  = p.qtd>0 ? nt/p.qtd : 0;
-        } else if(op.tipo==='Venda'){
-          // Venda parcial: PM permanece, só reduz qtd. Não zerar pmAdj
-          // (FII não tem opção/venda a descoberto a preservar aqui).
-          p.qtd = Math.max(0, p.qtd - +op.qtd);
-          if(p.qtd <= 0){ p.qtd=0; }
-        } else if(op.tipo==='Desdobramento'){
-          const f=+op.qtd; if(f>1){p.qtd=Math.round(p.qtd*f); p.pmAdj=p.qtd>0?p.pmAdj/f:0;}
-        } else if(op.tipo==='Grupamento'){
-          const f=+op.qtd; if(f>1){p.qtd=Math.round(p.qtd/f); p.pmAdj=p.qtd>0?p.pmAdj*f:0;}
-        }
-      }
-      _snapshots.push(JSON.parse(JSON.stringify(_pmFII)));
-    }
-
-  var rvFII = MESES.map((mes, mi) => {
-    const m = (mi+1).toString().padStart(2,'0');
-    const inicioMes = `${ano}-${m}-01`;
-    const fimMes    = new Date(ano, mi+1, 0).toISOString().slice(0,10);
-    const pmSnap    = _snapshots[mi] || {};
-    // Ordena cronologicamente; em caso de mesma data, processa compras antes de vendas
-    // para que uma compra e venda no MESMO mês (ou mesmo dia) atualizem o custo médio
-    // corretamente antes do cálculo do ganho — evita tratar o custo de aquisição como zero.
-    const opsDoMes  = ops
-      .filter(o => o.data >= inicioMes && o.data <= fimMes)
-      .slice()
-      .sort((a,b) => {
-        if(a.data !== b.data) return a.data < b.data ? -1 : 1;
-        const rankA = a.tipo==='Venda' ? 1 : 0;
-        const rankB = b.tipo==='Venda' ? 1 : 0;
-        return rankA - rankB;
-      });
-
-    // Cópia de trabalho do PM (parte do snapshot de início do mês, mas evolui durante o mês)
-    const pmMes = JSON.parse(JSON.stringify(pmSnap));
-
-    let resLiq=0, vendaBruta=0;
-    for(const op of opsDoMes){
-      const tk=(op.ticker||'').toUpperCase();
-      if(!isFIIou(tk)) continue;
-      if(!pmMes[tk]) pmMes[tk] = {qtd:0, pmAdj:0};
-      const p = pmMes[tk];
-      if(op.tipo==='Compra'||op.tipo==='IPO'||op.tipo==='Bonificação'){
-        // Compra dentro do próprio mês: atualiza o custo médio ANTES de qualquer
-        // venda subsequente no mesmo mês usar esse custo.
-        const nt = p.pmAdj*p.qtd + +op.preco* +op.qtd;
-        p.qtd   += +op.qtd;
-        p.pmAdj  = p.qtd>0 ? nt/p.qtd : 0;
-      } else if(op.tipo==='Venda'){
-        // Ganho = (preço venda − PM aquisição) × qtd − taxas
-        // (perna de Conversão de ticker não é venda: não entra no resultado nem no volume)
-        if(!op._conversao){
-          const g = (+op.preco - p.pmAdj) * +op.qtd - (+op.taxa||0);
-          resLiq     += g;
-          vendaBruta += +op.preco * +op.qtd;
-        }
-        p.qtd = Math.max(0, p.qtd - +op.qtd);
-        if(p.qtd <= 0){ p.qtd=0; }
-      } else if(op.tipo==='Desdobramento'){
-        const f=+op.qtd; if(f>1){p.qtd=Math.round(p.qtd*f); p.pmAdj=p.qtd>0?p.pmAdj/f:0;}
-      } else if(op.tipo==='Grupamento'){
-        const f=+op.qtd; if(f>1){p.qtd=Math.round(p.qtd/f); p.pmAdj=p.qtd>0?p.pmAdj*f:0;}
-      }
-    }
-    return { mes, resLiq:+resLiq.toFixed(2), vendaBruta:+vendaBruta.toFixed(2) };
-  });
-  }
+  const rvFII = MESES.map((mes, mi) => ({
+    mes,
+    resLiq:     +apuracao[mi].fiiTotal.toFixed(2),
+    vendaBruta: +apuracao[mi].totalVendasFII.toFixed(2),
+  }));
 
   return { ano, bens, rv, apuracao, rvFII, dividendos, jcp, bonificacoes, prejAnterior };
 }
@@ -14401,7 +14254,7 @@ function renderIR() {
   html += `<div class="ir-section">
     <div class="ir-section-header">📊 Renda Variável — Operações Comuns e Day-Trade — ${ano} &nbsp;<small style="font-weight:400;color:var(--text3)">(Ficha: Renda Variável)</small></div>
     <div style="font-size:11px;color:var(--text3);margin-bottom:12px;line-height:1.8">
-      <strong>Operações Comuns:</strong> alíquota 15% · <strong>isento</strong> se as vendas de ações no mês somarem até R$ 20.000 · IR fonte 0,005% s/ vendas brutas · DARF cód. <strong>6015</strong><br>
+      <strong>Operações Comuns:</strong> alíquota 15% · <strong>isento</strong> se as vendas de ações no mês somarem até R$ 20.000 (ETFs e BDRs não têm essa isenção) · IR fonte 0,005% s/ vendas brutas · DARF cód. <strong>6015</strong><br>
       <strong>Day-Trade:</strong> alíquota 20% · IR fonte 1% s/ resultado positivo · DARF cód. <strong>6015</strong><br>
       Prejuízos de operações comuns compensam apenas operações comuns, e day-trade compensa apenas day-trade (IN RFB 1.585/2015).
     </div>`;
@@ -14413,7 +14266,7 @@ function renderIR() {
     // Base, isenção, IRRF, imposto e prejuízo vêm prontos da apuração mensal
     // (a mesma cadeia que a Calculadora de IR usa) — aqui só se exibe.
     const ap        = d.apuracao[mi];
-    const resComum  = r.resVista + r.resOpcoes;
+    const resComum  = r.resVista + r.resETF + r.resOpcoes;
     const resDT     = r.resDT || 0;
     if(resComum === 0 && resDT === 0 && !r.vendaBruta && !r.vendaBrutaDT
        && ap.prejSTAntes === 0 && ap.prejDTAntes === 0) return;
@@ -14450,6 +14303,7 @@ function renderIR() {
           </div>
           <table class="ir-table" style="border-radius:0 0 6px 6px;overflow:hidden;margin:0"><tbody>
             <tr><td>Mercado à vista — Ações</td><td class="val" style="color:${r.resVista>=0?'var(--green)':'var(--red)'}">${fmtSin(r.resVista)}</td></tr>
+            ${r.resETF !== 0 ? `<tr><td>Mercado à vista — ETFs e BDRs <span style="color:var(--text3)">(sem isenção)</span></td><td class="val" style="color:${r.resETF>=0?'var(--green)':'var(--red)'}">${fmtSin(r.resETF)}</td></tr>` : ''}
             <tr><td>Mercado de Opções</td><td class="val" style="color:${r.resOpcoes>=0?'var(--green)':'var(--red)'}">${fmtSin(r.resOpcoes)}</td></tr>
             <tr class="ir-subtotal"><td>Resultado (1+2)</td><td class="val" style="color:${resComum>=0?'var(--green)':'var(--red)'}">${fmtSin(resComum)}</td></tr>
             ${ganhoIsentoC > 0 ? `<tr style="color:var(--green)"><td>✓ Isento — vendas de ações no mês ≤ R$ 20.000</td><td class="val">−${fmtIR(ganhoIsentoC)}</td></tr>` : ''}
@@ -14518,20 +14372,20 @@ function renderIR() {
       </tr></thead>
       <tbody>`;
 
-  let prejFIICarry = d.prejAnterior?.prejFII || 0;
   let totalIRFII = 0;
   let temFII = false;
 
-  d.rvFII.forEach(r => {
-    const base      = r.resLiq - prejFIICarry;
-    const irDevido  = base > 0 ? +(base * 0.20).toFixed(2) : 0;
-    const irFonte   = r.vendaBruta > 0 ? +(r.vendaBruta * 0.00005).toFixed(2) : 0;
-    const irPagar   = Math.max(0, +(irDevido - irFonte).toFixed(2));
-    const novoPrej  = base < 0 ? Math.abs(base) : 0;
-    const prejAntes = prejFIICarry;
+  d.rvFII.forEach((r, mi) => {
+    // Base, IRRF, imposto e prejuízo vêm da apuração mensal — a mesma cadeia
+    // que a Calculadora de IR usa. Aqui só se exibe.
+    const ap        = d.apuracao[mi];
+    const base      = ap.fiiBaseCalc;
+    const irDevido  = ap.irFIIBruto;
+    const irFonte   = ap.irrfFII;
+    const irPagar   = ap.irFII;
+    const prejAntes = ap.prejFIIAntes;
 
-    if(base >= 0) prejFIICarry = 0; else prejFIICarry = novoPrej;
-    totalIRFII += irPagar;
+    totalIRFII += +irPagar.toFixed(2);
 
     if(r.resLiq !== 0 || prejAntes > 0) temFII = true;
 
@@ -14829,9 +14683,8 @@ function exportarIRCSV() {
   const MESES_NOMES = ['Janeiro','Fevereiro','Março','Abril','Maio','Junho',
                        'Julho','Agosto','Setembro','Outubro','Novembro','Dezembro'];
 
-  // Comuns e day-trade vêm prontos de d.apuracao (a mesma cadeia da
-  // Calculadora de IR); só o FII ainda tem carry próprio aqui.
-  let prejFIICarry   = d.prejAnterior?.prejFII   || 0;
+  // Comuns, day-trade e FII vêm prontos de d.apuracao (a mesma cadeia da
+  // Calculadora de IR) — este CSV não recalcula imposto nenhum.
 
   // Dados de PF/exterior do localStorage
   const pfKey  = `ir_pf_exterior_${ano}`;
@@ -14867,7 +14720,7 @@ function exportarIRCSV() {
     const ap = d.apuracao[mi];
 
     // ── Swing (operações comuns) ─────────────────────────────────
-    const resComum = r.resVista + r.resOpcoes;
+    const resComum = r.resVista + r.resETF + r.resOpcoes;
     const irPagarC = +ap.irST.toFixed(2);
 
     // ── Day-Trade ────────────────────────────────────────────────
@@ -14875,13 +14728,8 @@ function exportarIRCSV() {
     const irPagarDT = +ap.irDT.toFixed(2);
 
     // ── FIIs ─────────────────────────────────────────────────────
-    const rFII    = d.rvFII[mi];
-    const resLiq  = rFII?.resLiq || 0;
-    const baseFII = resLiq - prejFIICarry;
-    const irFII   = baseFII > 0 ? +(baseFII * 0.20).toFixed(2) : 0;
-    const irFonteFII = rFII?.vendaBruta ? +(rFII.vendaBruta * 0.00005).toFixed(2) : 0;
-    const irPagarFII = Math.max(0, +(irFII - irFonteFII).toFixed(2));
-    if(baseFII >= 0) prejFIICarry = 0; else prejFIICarry = Math.abs(baseFII);
+    const resLiq     = d.rvFII[mi]?.resLiq || 0;
+    const irPagarFII = +ap.irFII.toFixed(2);
 
     // ── Isenções (vendas de ações até R$20k no mês) ──────────────
     const isencao = ap.isento ? ap.stAcoes : 0;
@@ -14901,7 +14749,7 @@ function exportarIRCSV() {
 
     // Só emite linha se houver algum movimento OU prejuízo anterior
     const temMov = resComum!==0 || resDT!==0 || resLiq!==0 || isencao>0 || impostoMes>0;
-    if(!temMov && ap.novoPrejST===0 && ap.novoPrejDT===0 && prejFIICarry===0) return;
+    if(!temMov && ap.novoPrejST===0 && ap.novoPrejDT===0 && ap.novoPrejFII===0) return;
 
     linhas.push([
       mesRef,
@@ -14953,7 +14801,7 @@ function gerarHTMLParaImpressao(ano) {
   let totalIRPagar = 0;
   const rvHTML = d.rv.map((r, mi) => {
     const ap       = d.apuracao[mi];
-    const resTotal = r.resVista + r.resOpcoes;
+    const resTotal = r.resVista + r.resETF + r.resOpcoes;
     const baseCalc = ap.stBaseCalc;
     const irDevido = ap.irSTBruto;
     const irFonte  = ap.irrfST;
@@ -14966,6 +14814,7 @@ function gerarHTMLParaImpressao(ano) {
       <div style="background:#e8e8e8;padding:6px 10px;font-weight:bold;font-size:12px">${r.mes}</div>
       <table style="width:100%;border-collapse:collapse;font-size:11px">
         <tr><td style="padding:4px 8px;border:1px solid #ddd">1 — Mercado à vista — Ações</td><td style="padding:4px 8px;border:1px solid #ddd;text-align:right">${fmtSin(r.resVista)}</td></tr>
+        ${r.resETF !== 0 ? `<tr><td style="padding:4px 8px;border:1px solid #ddd">1b — Mercado à vista — ETFs e BDRs (sem isenção)</td><td style="padding:4px 8px;border:1px solid #ddd;text-align:right">${fmtSin(r.resETF)}</td></tr>` : ''}
         <tr><td style="padding:4px 8px;border:1px solid #ddd">2 — Mercado de Opções (resultado)</td><td style="padding:4px 8px;border:1px solid #ddd;text-align:right">${fmtSin(r.resOpcoes)}</td></tr>
         <tr style="background:#f0f0f0"><td style="padding:4px 8px;border:1px solid #ddd;font-weight:bold">3 — Resultado líquido (1+2)</td><td style="padding:4px 8px;border:1px solid #ddd;text-align:right;font-weight:bold">${fmtSin(resTotal)}</td></tr>
         ${ganhoIsento > 0 ? `<tr><td style="padding:4px 8px;border:1px solid #ddd;color:#060">Isento — vendas de ações no mês até R$ 20.000</td><td style="padding:4px 8px;border:1px solid #ddd;text-align:right;color:#060">−${fmtIR(ganhoIsento)}</td></tr>` : ''}
