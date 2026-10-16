@@ -305,7 +305,7 @@ body.dark .pos-qty-num{color:#f0c040}
   /* Esconder sidebar desktop e topbar desktop */
   .sidebar{display:none!important;}
   .topbar{display:none!important;}
-  .ticker-banner{display:none;}
+  .ticker-banner,.toggle-wrap.pref-banner{display:none;}
 
   /* Ativar elementos mobile */
   .mobile-nav{display:flex!important;flex-direction:column;}
@@ -965,8 +965,21 @@ svg.i.lg{width:22px;height:22px}
 .sync-pill[data-st=local] i,.sync-pill[data-st=conectando] i{background:var(--info)}
 .sync-pill[data-st=salvando] i{background:var(--warn);animation:pulse 1s infinite}
 .sync-pill[data-st=erro]{color:var(--neg);border-color:var(--neg)}.sync-pill[data-st=erro] i{background:var(--neg)}
-.sync-pill[data-st=offline]{color:var(--warn);border-color:var(--warn)}.sync-pill[data-st=offline] i{background:var(--warn)}
+.sync-pill[data-st=offline],.sync-pill[data-st=pausado]{color:var(--warn);border-color:var(--warn)}.sync-pill[data-st=offline] i,.sync-pill[data-st=pausado] i{background:var(--warn)}
 .sync-pill.sync-compact{padding:7px}
+.sync-pill{cursor:pointer}
+.sync-pill:hover,.sync-pill:focus-visible{border-color:var(--text3)}
+.nuvem-tab{width:100%;border-collapse:collapse;font-size:13px}
+.nuvem-tab th{font-size:11px;color:var(--text3);text-transform:uppercase;letter-spacing:.4px;text-align:left;padding:6px 8px;border-bottom:1px solid var(--border)}
+.nuvem-tab td{padding:8px;border-bottom:1px solid var(--border);vertical-align:top}
+.nuvem-tab td.num{text-align:right;white-space:nowrap;font-variant-numeric:tabular-nums}
+.nuvem-bar{height:5px;background:var(--surface2);border-radius:99px;overflow:hidden;margin-top:5px}
+.nuvem-bar i{display:block;height:100%;background:var(--pos);border-radius:99px}
+.nuvem-status{display:flex;gap:10px;align-items:flex-start;padding:12px 14px;border-radius:var(--radius-sm);border:1px solid var(--border);background:var(--surface2);font-size:13px;line-height:1.5}
+.nuvem-status b{display:block;font-size:14px;margin-bottom:2px}
+.nuvem-status.erro{border-color:var(--neg);color:var(--neg)}
+.nuvem-status.offline{border-color:var(--warn)}
+.nuvem-mono{font-family:'DM Mono',monospace;font-size:11.5px;word-break:break-word;color:var(--text2)}
 
 /* ── Cotações ao vivo (faixa) ── */
 .ticker-banner{background:var(--surface);color:var(--text);border-bottom:1px solid var(--border);height:34px}
@@ -1400,7 +1413,7 @@ body[data-aba="entrada"] .fab{display:none!important}
     </svg>
     <div class="mobile-topbar-title" id="mobile-topbar-title">Dashboard</div>
     <div class="mobile-topbar-actions">
-      <span class="sync-pill sync-compact" data-sync title="Seus dados" data-st="local"><i></i></span>
+      <span class="sync-pill sync-compact" data-sync title="Seus dados" data-st="local" role="button" tabindex="0" aria-label="Situação do salvamento" onclick="abrirDiagnosticoNuvem()" onkeydown="if(event.key==='Enter'||event.key===' '){event.preventDefault();abrirDiagnosticoNuvem()}"><i></i></span>
       <button class="btn icon ghost js-tema-btn" onclick="alternarTemaRapido()" aria-label="Mudar para o tema escuro" title="Mudar para o tema escuro"><svg class="i"><use href="#i-moon"/></svg></button>
     </div>
   </header>
@@ -1491,7 +1504,7 @@ body[data-aba="entrada"] .fab{display:none!important}
         <div class="topbar-sub" id="topbar-sub">Visão geral da carteira</div>
       </div>
       <div class="topbar-actions">
-        <span class="sync-pill" id="sync-pill" data-sync data-st="local" title="Onde seus dados estão guardados"><i></i><span data-sync-text>Salvo neste navegador</span></span>
+        <span class="sync-pill" id="sync-pill" data-sync data-st="local" title="Onde seus dados estão guardados" role="button" tabindex="0" onclick="abrirDiagnosticoNuvem()" onkeydown="if(event.key==='Enter'||event.key===' '){event.preventDefault();abrirDiagnosticoNuvem()}"><i></i><span data-sync-text>Salvo neste navegador</span></span>
         <button class="btn icon ghost js-tema-btn" id="btn-tema-rapido" onclick="alternarTemaRapido()" aria-label="Mudar para o tema escuro" title="Mudar para o tema escuro"><svg class="i"><use href="#i-moon"/></svg></button>
         <button class="btn" onclick="document.getElementById('file-import').click()" title="Importar um arquivo CSV ou planilha do seu histórico"><svg class="i"><use href="#i-upload"/></svg><span class="lbl">Importar CSV</span></button>
         <button class="btn" onclick="switchTab('entrada')" title="Registrar uma operação digitando os dados"><svg class="i"><use href="#i-plus"/></svg><span class="lbl">Registrar operação</span></button>
@@ -2193,6 +2206,17 @@ body[data-aba="entrada"] .fab{display:none!important}
               <span class="toggle-slider"></span>
             </label>
           </div>
+          <div class="toggle-wrap pref-banner">
+            <div>
+              <div class="toggle-label">Velocidade da barra de cotações</div>
+              <div class="toggle-desc">A faixa de cotações no topo rola sozinha; passe o mouse por cima para pausar</div>
+            </div>
+            <select id="sel-banner-vel" class="sel-sm" onchange="aplicarVelocidadeBanner(this.value)" aria-label="Velocidade da barra de cotações">
+              <option value="muito-lenta">Muito lenta</option>
+              <option value="lenta">Lenta</option>
+              <option value="normal">Normal</option>
+            </select>
+          </div>
         </div>
 
         <!-- Dados e armazenamento -->
@@ -2227,7 +2251,7 @@ body[data-aba="entrada"] .fab{display:none!important}
         <div class="acct-card">
           <div class="acct-card-title">Sobre a plataforma</div>
           <div style="display:grid;grid-template-columns:1fr 1fr;gap:12px;font-size:13px">
-            <div><span style="color:var(--text3)">Versão</span><br><strong>2.1.0</strong></div>
+            <div><span style="color:var(--text3)">Versão</span><br><strong id="sobre-versao">2.2.0</strong></div>
             <div><span style="color:var(--text3)">Armazenamento</span><br><strong id="sobre-armazenamento">localStorage</strong></div>
             <div><span style="color:var(--text3)">Cotações</span><br><strong>Yahoo Finance · BVMF</strong></div>
             <div><span style="color:var(--text3)">Leitura de notas</span><br><strong>PDF.js 3.11</strong></div>
@@ -2487,6 +2511,22 @@ body[data-aba="entrada"] .fab{display:none!important}
   </div>
 </div>
 
+<!-- MODAL: Salvamento na nuvem (clicar no indicador do topo) -->
+<div id="modal-nuvem" class="modal-overlay" onclick="if(event.target===this)fecharDiagnosticoNuvem()">
+  <div class="modal-box" onclick="event.stopPropagation()" style="max-width:640px" role="dialog" aria-modal="true" aria-labelledby="nuvem-titulo">
+    <div style="display:flex;justify-content:space-between;align-items:center">
+      <div class="modal-title" id="nuvem-titulo">Salvamento dos seus dados</div>
+      <button class="btn btn-ghost btn-sm" onclick="fecharDiagnosticoNuvem()" aria-label="Fechar">✕</button>
+    </div>
+    <div class="modal-body" id="nuvem-corpo" style="min-height:0"></div>
+    <div class="modal-footer" style="flex-wrap:wrap">
+      <button class="btn btn-ghost btn-sm" onclick="copiarRelatorioNuvem()">Copiar relatório</button>
+      <button class="btn btn-ghost btn-sm" onclick="exportarBackupTXT()">Baixar backup (TXT)</button>
+      <button class="btn btn-primary btn-sm" id="nuvem-tentar" onclick="tentarSalvarNuvem()">Tentar salvar agora</button>
+    </div>
+  </div>
+</div>
+
 <script>
 
 // ══════════════════════════════════════════════════════════════════
@@ -2599,7 +2639,113 @@ let _wixReady       = false;   // true após carregar dados do Wix
 let _wixSaveQueue   = {};      // {key: value} acumulado
 let _wixSaveInFlight = false;  // true entre o envio do WIX_SALVAR e a resposta (OK ou erro)
 let _wixLastSent     = null;   // cópia do último payload enviado, pra poder reenviar se der erro
-let _wixRetries      = 0;      // tentativas de reenvio já feitas pro payload atual
+let _wixRetries      = 0;      // falhas seguidas de envio (zera quando um envio dá certo)
+let _wixTx           = null;   // envio em andamento: {original, lotes, i, inicio, timer}
+let _wixRetryTimer   = null;   // próxima tentativa, agendada depois de uma falha
+let _wixEnviarLogo   = false;  // chegou coisa nova enquanto um envio ainda estava a caminho
+let _wixSegurados    = {};     // chaves cuja leitura na nuvem veio incompleta e que não têm cópia neste navegador: não são enviadas
+
+// ── Valores grandes: divididos em pedaços ───────────────────────────────────
+// Cada chave do app vira UMA linha na coleção do Wix, e o Wix recusa linha com mais de 512 KB (erro WDE0009,
+// "Document is too large"). A lista de operações cresce a cada nota importada; passando do limite, TODO
+// salvamento que a incluía falhava ("Erro ao salvar") — e as outras alterações, que seguiam na mesma mensagem,
+// também não eram salvas. Agora um valor grande é dividido em pedaços (chave~c1, chave~c2…) e a linha da chave
+// guarda só um marcador (quantos pedaços, tamanho total e uma assinatura). Ao carregar, os pedaços são juntados
+// e conferidos; se algo não bater, o app mantém a cópia deste navegador e manda tudo de volta.
+const WIX_LINHA_MAX = 250000;       // caracteres: acima disso o valor é dividido (o limite do Wix é 512 KB por linha)
+const WIX_PEDACO    = 100000;       // caracteres por pedaço
+const WIX_LOTE_MAX  = 320000;       // caracteres por mensagem WIX_SALVAR (3 pedaços; os de uma chave podem ir em mais de uma mensagem)
+const WIX_MARCA     = '@@IMPARTES1@@';
+const WIX_SEP       = '~c';
+// (window.__imTeste só existe na bancada de testes, para encurtar as esperas; no site é sempre indefinido)
+const WIX_RESPOSTA_MAX_MS = (window.__imTeste && window.__imTeste.respostaMs) || 45000;   // sem resposta do Wix nesse tempo, o envio conta como falha
+const WIX_ESPERAS   = (window.__imTeste && window.__imTeste.esperas) || [3000, 8000, 20000, 45000, 60000];   // espera entre tentativas depois de uma falha (a última repete)
+
+// Versão da plataforma (aparece em Minha conta → Sobre e no relatório de salvamento: ajuda a saber qual versão o cliente está usando)
+const APP_VERSAO = '2.2.0 · 16/10/2026';
+
+// O que o indicador do topo mostra quando se clica nele (Diagnóstico da nuvem)
+const _wixDiag = { ultimoOk: 0, erro: null, falhas: 0, envios: 0, erroCarga: '', cargaProblemas: [], nuvem: {}, ultimoResumo: null };
+
+// Assinatura rápida de um texto (cyrb53, 53 bits) — para conferir que os pedaços juntados formam o valor original
+function _wixAssinatura(s){
+  let h1 = 0xdeadbeef, h2 = 0x41c6ce57;
+  for(let i = 0; i < s.length; i++){
+    const ch = s.charCodeAt(i);
+    h1 = Math.imul(h1 ^ ch, 2654435761);
+    h2 = Math.imul(h2 ^ ch, 1597334677);
+  }
+  h1 = Math.imul(h1 ^ (h1 >>> 16), 2246822507) ^ Math.imul(h2 ^ (h2 >>> 13), 3266489909);
+  h2 = Math.imul(h2 ^ (h2 >>> 16), 2246822507) ^ Math.imul(h1 ^ (h1 >>> 13), 3266489909);
+  return (4294967296 * (2097151 & h2) + (h1 >>> 0)).toString(36);
+}
+
+// {chave: valor} → linhas que vão de fato para o Wix. Valor pequeno vai como está; valor grande vira os pedaços e,
+// por último, o marcador (quem lê só enxerga o valor novo quando todos os pedaços já estão lá).
+function _wixExpandir(dados){
+  const linhas = [], resumo = {};
+  Object.keys(dados).forEach(k => {
+    const v = dados[k] == null ? '' : String(dados[k]);
+    if(v.length <= WIX_LINHA_MAX){ linhas.push({ chave: k, valor: v }); resumo[k] = { chars: v.length, partes: 0 }; return; }
+    const n = Math.ceil(v.length / WIX_PEDACO);
+    for(let i = 0; i < n; i++) linhas.push({ chave: k + WIX_SEP + (i + 1), valor: v.slice(i * WIX_PEDACO, (i + 1) * WIX_PEDACO) });
+    linhas.push({ chave: k, valor: WIX_MARCA + JSON.stringify({ n, len: v.length, h: _wixAssinatura(v) }) });
+    resumo[k] = { chars: v.length, partes: n };
+  });
+  return { linhas, resumo };
+}
+
+// Linhas → mensagens WIX_SALVAR de até WIX_LOTE_MAX caracteres, na mesma ordem (pedaços antes do marcador)
+function _wixLotes(linhas){
+  const lotes = []; let atual = {}, tam = 0, n = 0;
+  linhas.forEach(l => {
+    const t = l.chave.length + l.valor.length;
+    if(n > 0 && tam + t > WIX_LOTE_MAX){ lotes.push(atual); atual = {}; tam = 0; n = 0; }
+    atual[l.chave] = l.valor; tam += t; n++;
+  });
+  if(n > 0) lotes.push(atual);
+  return lotes;
+}
+
+function _wixLerMarcador(v){
+  if(typeof v !== 'string' || v.indexOf(WIX_MARCA) !== 0) return null;
+  try{
+    const m = JSON.parse(v.slice(WIX_MARCA.length));
+    if(m && m.n > 0 && m.len >= 0 && m.h) return m;
+  }catch(e){}
+  return null;
+}
+
+// O que veio da nuvem → valores inteiros. Junta os pedaços e confere tamanho e assinatura.
+// Devolve {valores, problemas, tamanhos}: "problemas" são as chaves cujos pedaços faltam ou não conferem.
+function _wixMontarDados(dados){
+  const valores = {}, problemas = [], tamanhos = {};
+  Object.keys(dados || {}).forEach(k => {
+    if(/~c\d+$/.test(k)) return;                       // pedaço: só entra via o marcador da própria chave
+    const v = dados[k], m = _wixLerMarcador(v);
+    if(!m){ valores[k] = v; tamanhos[k] = typeof v === 'string' ? v.length : 0; return; }
+    let juntos = '', ok = true;
+    for(let i = 1; i <= m.n; i++){
+      const p = dados[k + WIX_SEP + i];
+      if(typeof p !== 'string'){ ok = false; break; }
+      juntos += p;
+    }
+    if(ok && juntos.length === m.len && _wixAssinatura(juntos) === m.h){ valores[k] = juntos; tamanhos[k] = juntos.length; }
+    else problemas.push(k);
+  });
+  return { valores, problemas, tamanhos };
+}
+
+// Texto do erro devolvido pelo Wix → explicação em português
+function _wixExplicarErro(txt){
+  const t = String(txt || '');
+  if(/WDE0009|too large|grande demais/i.test(t)) return 'Um dos seus dados passou do tamanho máximo que o Wix aceita em um registro (512 KB).';
+  if(/WDE0014|quota|too many|muitas/i.test(t)) return 'O Wix limitou as gravações por instantes (muitas em pouco tempo). A plataforma tenta de novo sozinha.';
+  if(/logado|not logged|log ?in|unauthori|forbidden|permission|WDE0027|WDE0001/i.test(t)) return 'Sua sessão no site parece ter expirado. Atualize a página (F5) e entre de novo.';
+  if(/WDE0028|time limit|timeout|timed out|não respondeu/i.test(t)) return 'O Wix demorou demais para responder. A plataforma tenta de novo sozinha.';
+  if(/fetch|network|\brede\b|conex|offline/i.test(t)) return 'Falha de conexão com o Wix. Verifique sua internet.';
+  return 'O Wix devolveu: ' + t;
+}
 
 // Wrapper de localStorage com suporte a Wix
 const Storage = {
@@ -2625,22 +2771,123 @@ const Storage = {
 // na hora quando a aba está prestes a sair/fechar — ver listeners abaixo.
 function wixFlushSave() {
   if(_wixSaveTimer) clearTimeout(_wixSaveTimer);
-  _wixSaveTimer = setTimeout(wixFlushSaveNow, 400);
+  // Valor grande (vira vários pedaços): espera um pouco mais, para juntar várias alterações seguidas num envio só
+  const grande = Object.values(_wixSaveQueue).some(v => v != null && String(v).length > WIX_LINHA_MAX);
+  _wixSaveTimer = setTimeout(wixFlushSaveNow, grande ? 1500 : 400);
 }
 
-// Envia imediatamente o que estiver na fila, pulando o debounce.
-function wixFlushSaveNow() {
+// Envia imediatamente o que estiver na fila, pulando o debounce. Um envio por vez: se já há um a caminho, este sai
+// assim que ele terminar (sem duas gravações da mesma chave disputando entre si). "forcar" = a aba está saindo.
+function wixFlushSaveNow(forcar) {
   if(_wixSaveTimer){ clearTimeout(_wixSaveTimer); _wixSaveTimer = null; }
   if(!WIX_MODE || Object.keys(_wixSaveQueue).length === 0) return;
   // Nada sobe para a nuvem antes de ela ter respondido (WIX_DADOS) ou de o tempo de espera acabar:
   // um navegador novo, ainda vazio, não pode gravar por cima dos dados que já estão salvos lá.
   if(!_wixReady) return;
-  const payload = { tipo: 'WIX_SALVAR', dados: {..._wixSaveQueue} };
-  console.log('[WIX] Enviando WIX_SALVAR, chaves:', Object.keys(payload.dados).join(', '));
-  _wixSaveQueue = {};
+  if(_wixTx && forcar !== true){ _wixEnviarLogo = true; return; }
+  if(_wixTx){
+    // A aba está saindo com um envio ainda a caminho: manda o resto sem esperar resposta (a fila fica como está,
+    // para o caso de a página não sair de verdade)
+    const fila = {}; Object.keys(_wixSaveQueue).forEach(k => { if(!_wixSegurados[k]) fila[k] = _wixSaveQueue[k]; });
+    const { linhas } = _wixExpandir(fila);
+    _wixLotes(linhas).forEach(l => { try { (window.top||window.parent).postMessage({ tipo: 'WIX_SALVAR', dados: l }, '*'); } catch(e){} });
+    return;
+  }
+  if(_wixRetryTimer){ clearTimeout(_wixRetryTimer); _wixRetryTimer = null; }
+  // Chaves seguradas ficam na fila (a página avisa que há algo sem salvar), mas não saem daqui
+  const original = {};
+  Object.keys(_wixSaveQueue).forEach(k => { if(!_wixSegurados[k]) original[k] = _wixSaveQueue[k]; });
+  if(Object.keys(original).length === 0){
+    if(Object.keys(_wixSaveQueue).length && typeof atualizarSyncPill === 'function') atualizarSyncPill('pausado');   // só há chaves seguradas
+    return;
+  }
+  Object.keys(original).forEach(k => { delete _wixSaveQueue[k]; });
+  const { linhas, resumo } = _wixExpandir(original);
+  const lotes = _wixLotes(linhas);
+  console.log('[WIX] Enviando WIX_SALVAR, chaves:', Object.keys(original).join(', '), lotes.length > 1 || linhas.length > Object.keys(original).length ? `(${linhas.length} linhas em ${lotes.length} mensagens)` : '');
+  _wixEnviarLogo = false;
   _wixSaveInFlight = true;
-  _wixLastSent = payload.dados;
-  try { (window.top||window.parent).postMessage(payload, '*'); } catch(e){ console.error('[WIX] Erro ao salvar:', e); _wixSaveInFlight = false; }
+  _wixLastSent = original;
+  // pend = respostas do Wix que ainda faltam; i = mensagem que está a caminho. Normal: uma por vez, esperando a
+  // resposta de cada uma. Aba saindo (forcar): todas de uma vez, sem tempo de esperar uma a uma.
+  _wixTx = { original, lotes, i: 0, pend: 0, inicio: Date.now(), timer: null };
+  _wixDiag.ultimoResumo = resumo;
+  _wixDiag.envios++;
+  if(forcar === true){
+    _wixTx.i = lotes.length - 1; _wixTx.pend = lotes.length;
+    _wixArmarPrazo();
+    lotes.forEach(l => { if(_wixTx) _wixPostar(l); });
+  } else {
+    _wixEnviarLote();
+  }
+}
+
+function _wixArmarPrazo() {
+  const tx = _wixTx;
+  if(!tx) return;
+  clearTimeout(tx.timer);
+  tx.timer = setTimeout(() => { if(_wixTx === tx) _wixFalhou('O Wix não respondeu em ' + Math.round(WIX_RESPOSTA_MAX_MS / 1000) + ' segundos.'); }, WIX_RESPOSTA_MAX_MS);
+}
+function _wixPostar(dados) {
+  try { (window.top||window.parent).postMessage({ tipo: 'WIX_SALVAR', dados }, '*'); return true; }
+  catch(e){ _wixFalhou('Não foi possível falar com o site do Wix: ' + ((e && e.message) || e)); return false; }
+}
+// Manda a mensagem seguinte do envio em andamento e fica esperando a resposta do Wix (com prazo)
+function _wixEnviarLote() {
+  const tx = _wixTx;
+  if(!tx) return;
+  tx.pend = 1;
+  _wixArmarPrazo();
+  _wixPostar(tx.lotes[tx.i]);
+}
+// Chegou a confirmação de uma mensagem do envio em andamento
+function _wixConfirmou() {
+  const tx = _wixTx;
+  if(!tx) return;
+  clearTimeout(tx.timer);
+  tx.pend = Math.max(0, tx.pend - 1);
+  if(tx.pend > 0){ _wixArmarPrazo(); return; }          // ainda faltam respostas (envio "tudo de uma vez")
+  if(tx.i + 1 < tx.lotes.length){ tx.i++; _wixEnviarLote(); return; }
+  _wixConcluir();
+}
+
+// Todas as mensagens do envio foram confirmadas
+function _wixConcluir() {
+  const tx = _wixTx; _wixTx = null;
+  if(tx && tx.timer) clearTimeout(tx.timer);
+  _wixSaveInFlight = false; _wixLastSent = null; _wixRetries = 0;
+  if(_wixRetryTimer){ clearTimeout(_wixRetryTimer); _wixRetryTimer = null; }
+  _wixDiag.ultimoOk = Date.now(); _wixDiag.erro = null;
+  const pendente = Object.keys(_wixSaveQueue).some(k => !_wixSegurados[k]);   // chaves seguradas não contam: não saem daqui
+  const el = document.getElementById('wix-sync-badge');
+  if(el){ el.textContent = '☁ Salvo'; el.style.color = '#39ff14'; }
+  if(typeof atualizarSyncPill === 'function') atualizarSyncPill(pendente ? 'salvando' : 'nuvem');
+  if(pendente || _wixEnviarLogo) wixFlushSaveNow();
+}
+
+// O envio falhou (o Wix devolveu erro, não respondeu ou a mensagem nem saiu): devolve o que não foi salvo para a
+// fila (sem sobrescrever algo mais novo, editado nesse meio-tempo) e tenta de novo com espera crescente — não
+// desiste: enquanto a página estiver aberta, continua tentando a cada minuto.
+function _wixFalhou(texto) {
+  const tx = _wixTx; _wixTx = null;
+  if(tx && tx.timer) clearTimeout(tx.timer);
+  _wixSaveInFlight = false;
+  if(tx) Object.entries(tx.original).forEach(([k, v]) => { if(!(k in _wixSaveQueue)) _wixSaveQueue[k] = v; });
+  _wixLastSent = null;
+  _wixRetries++;
+  _wixDiag.falhas++;
+  _wixDiag.erro = { texto: String(texto || 'erro sem detalhes'), quando: Date.now(), chaves: tx ? Object.keys(tx.original) : [],
+                    mensagem: tx ? tx.i + 1 : 0, mensagens: tx ? tx.lotes.length : 0, tentativa: _wixRetries };
+  console.warn('Wix save error:', texto);
+  const el = document.getElementById('wix-sync-badge');
+  if(el){ el.textContent = '☁ Erro ao salvar'; el.style.color = '#ff3b3b'; }
+  if(typeof atualizarSyncPill === 'function') atualizarSyncPill('erro');
+  if(typeof toast === 'function'){
+    if(_wixRetries === 1) toast('Não foi possível salvar na nuvem agora. Não feche nem atualize a página — tentando de novo.', 'error');
+    else if(_wixRetries === 2 || _wixRetries === 6) toast('Ainda não consegui salvar na nuvem. ' + _wixExplicarErro(texto) + ' Clique em "Erro ao salvar", no topo, para ver os detalhes.', 'error', 9000);
+  }
+  if(_wixRetryTimer) clearTimeout(_wixRetryTimer);
+  _wixRetryTimer = setTimeout(() => { _wixRetryTimer = null; wixFlushSaveNow(); }, WIX_ESPERAS[Math.min(_wixRetries - 1, WIX_ESPERAS.length - 1)]);
 }
 
 // Se a aba for escondida/fechada/atualizada com algo ainda não enviado (ou já
@@ -2651,10 +2898,10 @@ if(WIX_MODE){
   document.addEventListener('visibilitychange', () => {
     if(document.visibilityState === 'hidden') wixFlushSaveNow();
   });
-  window.addEventListener('pagehide', wixFlushSaveNow);
+  window.addEventListener('pagehide', () => wixFlushSaveNow(true));
   window.addEventListener('beforeunload', (e) => {
     const pendente = _wixSaveTimer || Object.keys(_wixSaveQueue).length > 0 || _wixSaveInFlight;
-    wixFlushSaveNow();
+    wixFlushSaveNow(true);
     if(pendente){ e.preventDefault(); e.returnValue = ''; }
   });
 }
@@ -2673,7 +2920,10 @@ window.addEventListener('message', (event) => {
 
   if(msg.tipo === 'WIX_DADOS') {
     console.log('[WIX] WIX_DADOS recebido, chaves:', Object.keys(msg.dados||{}).join(', '));
-    const dados = msg.dados || {};
+    // Valores que foram divididos em pedaços voltam inteiros (conferidos por tamanho e assinatura)
+    const montado = _wixMontarDados(msg.dados || {});
+    const dados = montado.valores;
+    _wixDiag.nuvem = montado.tamanhos; _wixDiag.cargaProblemas = montado.problemas; _wixDiag.erroCarga = '';
     Object.entries(dados).forEach(([k,v]) => {
       if(v === null || v === undefined) return;
       // Proteção contra "race" de F5: se a nuvem ainda não tinha recebido o
@@ -2700,43 +2950,40 @@ window.addEventListener('message', (event) => {
       _lsSemEco(k, v);              // veio da nuvem: grava aqui sem mandar de volta
       delete _wixSaveQueue[k];      // um valor pendente (feito antes de a nuvem responder) ficou velho
     });
+    // Pedaços ausentes ou que não conferem na nuvem (envio interrompido, ou outro aparelho no meio da gravação):
+    // fica a cópia deste navegador, e ela volta inteira para a nuvem.
+    let semCopiaLocal = 0;
+    montado.problemas.forEach(k => {
+      let local = null; try { local = localStorage.getItem(k); } catch(e){}
+      if(local !== null && local !== '') _wixSaveQueue[k] = local;
+      else { semCopiaLocal++; _wixSegurados[k] = true; }   // sem cópia aqui: não deixa um valor novo (quase vazio) cobrir o que está na nuvem
+    });
+    if(montado.problemas.length && typeof toast === 'function'){
+      toast(semCopiaLocal
+        ? 'Uma parte dos dados guardados na nuvem está incompleta e este navegador não tem cópia. Abra a plataforma no computador onde você a usava antes e fale com o suporte.'
+        : 'Uma parte dos dados guardados na nuvem estava incompleta. Mantive a cópia deste navegador e estou salvando de novo.', 'warn', 9000);
+    }
     // Recarregar a página com os dados do Wix já no localStorage
     _wixReady = true;
     wixBootApp();
+    if(Object.keys(_wixSegurados).length && typeof atualizarSyncPill === 'function') atualizarSyncPill('pausado');
     if(Object.keys(_wixSaveQueue).length) wixFlushSave();   // algo guardado enquanto a nuvem não respondia (ex.: o caso do "mantive o local")
   }
 
   if(msg.tipo === 'WIX_SALVO_OK') {
-    _wixSaveInFlight = false;
-    _wixLastSent = null;
-    _wixRetries = 0;
-    // Confirmação de save — opcional, pode mostrar badge
-    const el = document.getElementById('wix-sync-badge');
-    if(el){ el.textContent = '☁ Salvo'; el.style.color = '#39ff14'; }
-    if(typeof atualizarSyncPill === 'function') atualizarSyncPill('nuvem');
+    // Confirmação de uma mensagem do envio em andamento. Sem envio em andamento é resposta atrasada de um envio já
+    // dado como perdido: o próprio envio seguinte confirma o estado.
+    if(!_wixTx){ _wixDiag.ultimoOk = Date.now(); return; }
+    _wixConfirmou();
   }
 
   if(msg.tipo === 'WIX_ERRO') {
-    _wixSaveInFlight = false;
-    console.warn('Wix save error:', msg.erro);
-    const el = document.getElementById('wix-sync-badge');
-    if(el){ el.textContent = '☁ Erro ao salvar'; el.style.color = '#ff3b3b'; }
-    if(typeof atualizarSyncPill === 'function') atualizarSyncPill('erro');
-    // Devolve pra fila o que não foi salvo (sem sobrescrever algo mais novo
-    // que já tenha sido editado/enfileirado nesse meio-tempo) e tenta de novo
-    // uma vez — é a causa mais provável de "sumiu depois que atualizei a
-    // página" (o save nunca chegou a salvar na nuvem), então também avisa
-    // com um toast que não passa batido como o badge discreto.
-    Object.entries(_wixLastSent || {}).forEach(([k,v]) => { if(!(k in _wixSaveQueue)) _wixSaveQueue[k] = v; });
-    _wixLastSent = null;
-    if(_wixRetries < 1){
-      _wixRetries++;
-      if(typeof toast === 'function') toast('Não foi possível salvar na nuvem agora. Não feche nem atualize a página — tentando de novo.', 'error');
-      setTimeout(wixFlushSaveNow, 2000);
-    } else {
-      _wixRetries = 0;
-      if(typeof toast === 'function') toast('Ainda não consegui salvar na nuvem. Verifique sua conexão antes de fechar ou atualizar a página.', 'error');
-    }
+    // Com um envio em andamento é erro de salvamento: devolve à fila e tenta de novo. Sem envio e antes de a nuvem
+    // responder, é erro ao CARREGAR (ex.: sessão expirada) — o app segue com a cópia deste navegador (ver wixInit)
+    // e guarda o motivo. Sem envio depois disso, é resposta atrasada de um envio já dado como perdido.
+    if(_wixTx) _wixFalhou(msg.erro);
+    else if(!_wixReady){ _wixDiag.erroCarga = String(msg.erro || 'erro sem detalhes'); console.warn('Wix load error:', msg.erro); }
+    else console.warn('Wix error (resposta atrasada, sem envio em andamento):', msg.erro);
   }
 });
 
@@ -2757,6 +3004,8 @@ function wixInit() {
     if(!_wixReady){
       _wixReady = true;
       wixBootApp(true);
+      // O Wix respondeu com erro ao carregar (ex.: sessão expirada): diz o motivo em vez de só "sem conexão"
+      if(_wixDiag.erroCarga && typeof toast === 'function') toast('Não consegui carregar seus dados da nuvem. ' + _wixExplicarErro(_wixDiag.erroCarga) + ' Estou mostrando a cópia deste navegador.', 'warn', 9000);
       if(Object.keys(_wixSaveQueue).length) wixFlushSave();
     }
   }, 9000);
@@ -2780,6 +3029,7 @@ let wixBootApp = (semNuvem) => {
   // Recarregar TODAS as variáveis do localStorage (já populado pelo Wix)
   try { const r=localStorage.getItem(KEY); if(r) ops=JSON.parse(r); } catch(e){}
   try { repararPernasDeConversao(); } catch(e){}
+  try { const k=repararAtivoObjetoOpcoes(); if(k>0) setTimeout(()=>toast(`🔧 ${k} opç${k===1?'ão corrigida':'ões corrigidas'}: o ativo-objeto agora é a unit (ex.: KLBN11)`), 800); } catch(e){}
   try { const r=localStorage.getItem(SIM_KEY); if(r) simState=JSON.parse(r); } catch(e){}
   try { const r=localStorage.getItem(GASTOS_KEY); if(r) gastosData=JSON.parse(r); } catch(e){}
   // Reaplicar configurações (tema, sidebar compacta/auto-ocultar etc.) agora que
@@ -2868,6 +3118,21 @@ let _modoDemo=false; // true enquanto os "dados de exemplo" (carregarExemplo) es
   }
 })();
 
+// ── Ativo-objeto de uma opção ────────────────────────────────────────────────
+// A nota da corretora diz a ESPÉCIE do ativo-objeto na própria linha da opção ("KLBNK186 UNT 18,63 KLBN FM":
+// UNT = unit → sufixo 11 · ON → 3 · PN → 4). Sem a espécie (planilha CSV, séries antigas) não dá para assumir
+// PN: em algumas empresas só a unit tem opção na B3 (Klabin: KLBN11 — não existe opção de KLBN4).
+const RAIZES_OPCAO_SO_UNIT = new Set(['KLBN','TAEE','SANB','BPAC','ALUP','ENGI','IGTI']);
+function ativoObjetoDeOpcao(raiz, especie){
+  raiz = String(raiz || '').toUpperCase().slice(0, 4);
+  if(raiz.length < 4) return '';
+  const esp = String(especie || '').toUpperCase();
+  if(/\bUNT\b/.test(esp)) return raiz + '11';
+  if(/\bON\b/.test(esp))  return raiz + '3';
+  if(/\bPN[AB]?\b/.test(esp)) return raiz + '4';
+  return raiz + (RAIZES_OPCAO_SO_UNIT.has(raiz) ? '11' : '4');
+}
+
 // ── Migração: corrigir ops com tickers de opção armazenados como Compra/Venda ──
 (function migrarOpcoes(){
   const LETRAS_CALL_MIG = 'ABCDEFGHIJKL';
@@ -2893,7 +3158,7 @@ let _modoDemo=false; // true enquanto os "dados de exemplo" (carregarExemplo) es
       const ano = mesOpcao < mesOp ? anoOp+1 : anoOp;
       let s=0,d=1; while(s<3){const dt=new Date(ano,mesOpcao-1,d);if(dt.getDay()===5)s++;if(s<3)d++;}
       op._opcao = {
-        serie: tk, ativoBase: m[1], ativoObj: m[1]+'4',
+        serie: tk, ativoBase: m[1], ativoObj: ativoObjetoDeOpcao(m[1], ''),
         tipo: isCall?'Call':'Put', cv: op._cv,
         vencimento: `${ano}-${String(mesOpcao).padStart(2,'0')}-${String(d).padStart(2,'0')}`,
       };
@@ -5539,15 +5804,18 @@ function parsearSecaoNota(texto){
       // Ativo-objeto: 4 primeiros chars do código (CMIG de CMIGD132E)
       const ativoObj2 = (serie2 || '').slice(0,4).toUpperCase();
 
-      // Tipo PN/ON
-      const tipoAtivoM2 = optLine.match(/\b(PN[AB]?|ON)\b/i);
+      // Espécie do ativo-objeto: PN/ON/UNT (a nota diz; "UNT" = unit, sufixo 11 — ex.: KLBN11)
+      const tipoAtivoM2 = optLine.match(/\b(PN[AB]?|ON|UNT)\b/i);
       const tipoAtivo2  = tipoAtivoM2 ? tipoAtivoM2[1].toUpperCase() : 'PN';
       const isPN2 = tipoAtivo2.startsWith('PN');
       const isON2 = tipoAtivo2.startsWith('ON');
+      const isUNT2 = tipoAtivo2 === 'UNT';
 
       // Resolver ticker completo do subjacente
-      let tickerSubj = resolverTicker(ativoObj2, tipoAtivo2)
-                    || (ativoObj2 + (isPN2?'4':isON2?'3':'4'));
+      let tickerSubj = (isUNT2 || (!tipoAtivoM2 && RAIZES_OPCAO_SO_UNIT.has(ativoObj2)))
+                    ? ativoObj2 + '11'
+                    : (resolverTicker(ativoObj2, tipoAtivo2)
+                    || (ativoObj2 + (isPN2?'4':isON2?'3':'4')));
 
       // 5ª letra define Call ou Put → define se foi exercício de Call ou Put
       const LETRAS_PUT2 = 'MNOPQRSTUVWX';
@@ -5653,11 +5921,13 @@ function parsearSecaoNota(texto){
         ativoObj = serie.slice(0,4).toUpperCase();
       }
 
-      // 4. Tipo ON/PN para resolver ticker do subjacente
-      const tipoAtivoM = optLine.match(/\b(PN[AB]?|ON)\b/i);
+      // 4. Espécie ON/PN/UNT para resolver ticker do subjacente. A nota traz a espécie logo depois do código da
+      //    série ("KLBNK186 UNT 18,63 KLBN FM"); UNT = unit → sufixo 11 (opção de KLBN é sobre KLBN11, não KLBN4).
+      const tipoAtivoM = optLine.match(/\b(PN[AB]?|ON|UNT)\b/i);
       const tipoAtivo  = tipoAtivoM ? tipoAtivoM[1].toUpperCase() : 'PN';
       const isSubjPN   = tipoAtivo.startsWith('PN');
       const isSubjON   = tipoAtivo.startsWith('ON');
+      const isSubjUNT  = tipoAtivo === 'UNT';
 
       // 5. Call ou Put pela 5ª letra do código de série
       //    Letras Call: A(jan) B(fev) C(mar) D(abr) E(mai) F(jun)
@@ -5688,9 +5958,10 @@ function parsearSecaoNota(texto){
       const tickerOpcao = serie || (ativoObj + (optTipo==='Opção Call'?'C':'P') + String(strike||'').replace('.',''));
 
       // 8. Ativo-objeto com sufixo correto (PETR4, CMIG4, etc.)
-      const ativoObjCompleto = ativoObj
-        ? (resolverTicker(ativoObj, tipoAtivo) || ativoObj + (isSubjPN?'4':isSubjON?'3':'4'))
-        : '';
+      const ativoObjCompleto = !ativoObj ? ''
+        : (isSubjUNT || (!tipoAtivoM && RAIZES_OPCAO_SO_UNIT.has(ativoObj)))
+          ? ativoObj + '11'
+          : (resolverTicker(ativoObj, tipoAtivo) || ativoObj + (isSubjPN?'4':isSubjON?'3':'4'));
 
       // 9. Determinar a operação econômica:
       //    C/V na nota se refere à posição na opção em si:
@@ -6478,7 +6749,7 @@ function _importarCSVTexto(txt, fileName) {
           opcaoInfo = {
             serie: ticker,
             ativoBase: opcaoMatch[1],
-            ativoObj:  opcaoMatch[1] + '4', // padrão PN
+            ativoObj:  ativoObjetoDeOpcao(opcaoMatch[1], ''), // PN (4) por padrão; unit (11) onde só a unit tem opção
             tipo: isCall ? 'Call' : 'Put',
             vencimento,
             cv: cvFinal,
@@ -9410,8 +9681,11 @@ const SETTINGS_KEY = 'carteira_settings_v1';
 const SETTINGS_DEFAULT = {
   dark: false, compact: false, autoHide: false,
   confirmDel: true, som: false,
-  pctDash: true, privado: false, autoProventos: false
+  pctDash: true, privado: false, autoProventos: false,
+  bannerVel: 'lenta'
 };
+// Velocidade da faixa de cotações do topo, em px por segundo (ver renderBanner / ajustarVelocidadeFaixa)
+const BANNER_VEL = { 'muito-lenta': 14, 'lenta': 24, 'normal': 45 };
 
 function getSettings(){ try{ return {...SETTINGS_DEFAULT, ...JSON.parse(localStorage.getItem(SETTINGS_KEY)||'{}')}; }catch(e){ return {...SETTINGS_DEFAULT}; } }
 function salvarSettings(){
@@ -9632,6 +9906,8 @@ function renderConta(){
     const el = document.getElementById(id);
     if(el) el.checked = val;
   });
+  const selVel = document.getElementById('sel-banner-vel');
+  if(selVel) selVel.value = BANNER_VEL[s.bannerVel] ? s.bannerVel : 'lenta';
   // Sincronizar cards de tema
   const temaAtual = temaDasConfig(s);
   TEMAS.forEach(t => {
@@ -9645,8 +9921,10 @@ function renderConta(){
   // Onde os dados ficam guardados depende de onde a plataforma foi aberta
   const txtArm = document.getElementById('conta-armazenamento-texto');
   if(txtArm) txtArm.textContent = WIX_MODE
-    ? 'Seus dados ficam salvos na nuvem, na sua conta Import Money — você acessa de qualquer computador ou celular. Uma cópia fica neste navegador para a plataforma abrir mais rápido.'
+    ? 'Seus dados ficam salvos na nuvem, na sua conta Import Money — você acessa de qualquer computador ou celular. Uma cópia fica neste navegador para a plataforma abrir mais rápido. Para ver como está o salvamento, clique no indicador “Salvo na nuvem”, no topo.'
     : 'Você abriu a plataforma fora do site: os dados ficam armazenados só neste navegador (localStorage) e nenhuma informação é enviada a servidores. Para salvar na nuvem, entre pelo site importmoney.com.';
+  const sobreVer = document.getElementById('sobre-versao');
+  if(sobreVer) sobreVer.textContent = APP_VERSAO;
   const sobreArm = document.getElementById('sobre-armazenamento');
   if(sobreArm) sobreArm.textContent = WIX_MODE ? 'Nuvem (conta Import Money) + cópia no navegador' : 'localStorage (só este navegador)';
 
@@ -9956,6 +10234,33 @@ function repararPernasDeConversao(){
   if(n){
     try{ localStorage.setItem(KEY, JSON.stringify(ops)); }catch(e){}
     console.log(`[Conversão] ${n} operação(ões) de conversão restauradas ao ticker de origem.`);
+  }
+  return n;
+}
+
+// Opções já gravadas com o ativo-objeto errado: versões anteriores assumiam PN ("4") quando a nota dizia UNT, e
+// a opção KLBNK186 aparecia sobre KLBN4 (que não tem opção) em vez de KLBN11. O que a nota original diz
+// (_nomeOriginal, guardado na operação) manda; sem ele (planilha CSV), vale a lista de empresas em que só a unit
+// tem opção. Idempotente — só mexe no que estiver divergente. Devolve quantas opções corrigiu.
+function repararAtivoObjetoOpcoes(){
+  let n = 0;
+  (Array.isArray(ops) ? ops : []).forEach(op=>{
+    if(!op || (op.tipo!=='Opção Call' && op.tipo!=='Opção Put') || !op._opcao) return;
+    const o = op._opcao;
+    const atual = String(o.ativoObj || '').toUpperCase();
+    const raiz = String(o.ativoBase || atual.slice(0,4) || o.serie || op.ticker || '').toUpperCase().slice(0,4);
+    if(raiz.length < 4) return;
+    // só troca quando o ativo-objeto gravado é a mesma empresa com sufixo ON/PN (ou está vazio)
+    if(atual && !(atual.startsWith(raiz) && /^\d{1,2}$/.test(atual.slice(raiz.length)))) return;
+    const nome = String(op._nomeOriginal || '');
+    let correto = '';
+    if(/\bUNT\b/i.test(nome)) correto = raiz + '11';
+    else if(!/\b(PN[AB]?|ON)\b/i.test(nome) && RAIZES_OPCAO_SO_UNIT.has(raiz)) correto = raiz + '11';
+    if(correto && atual !== correto){ o.ativoObj = correto; n++; }
+  });
+  if(n){
+    try{ localStorage.setItem(KEY, JSON.stringify(ops)); }catch(e){}
+    console.log(`[Opções] ${n} opção(ões) com o ativo-objeto corrigido para a unit (ex.: KLBN4 → KLBN11).`);
   }
   return n;
 }
@@ -11554,7 +11859,7 @@ function updateMobileNav(id){
 // local = só neste navegador · conectando/nuvem/salvando/erro/offline = dentro do Wix (sincroniza na nuvem)
 const SYNC_TXT = {
   local:'Salvo neste navegador', conectando:'Conectando…', nuvem:'Salvo na nuvem',
-  salvando:'Salvando…', erro:'Erro ao salvar', offline:'Sem conexão com a nuvem',
+  salvando:'Salvando…', erro:'Erro ao salvar', offline:'Sem conexão com a nuvem', pausado:'Salvamento pausado',
 };
 const SYNC_DICA = {
   local:'Você abriu a plataforma fora do site: os dados ficam só neste navegador. Entrando pelo site importmoney.com, eles são salvos na nuvem da sua conta.',
@@ -11563,11 +11868,155 @@ const SYNC_DICA = {
   salvando:'Enviando suas alterações para a nuvem…',
   erro:'Não foi possível salvar na nuvem agora. Não feche nem atualize a página: a plataforma tenta de novo.',
   offline:'A nuvem não respondeu. Seus dados ficam neste navegador até a conexão voltar.',
+  pausado:'Parte dos dados guardados na nuvem está incompleta e este navegador não tem cópia: nada novo desses dados é enviado, para não apagar o que está lá.',
 };
 function atualizarSyncPill(st){
   if(!SYNC_TXT[st]) return;
-  document.querySelectorAll('[data-sync]').forEach(el => { el.dataset.st = st; el.title = SYNC_DICA[st]; });
+  // No erro, a dica diz o MOTIVO (o que o Wix devolveu), não só "não foi possível salvar"
+  let dica = SYNC_DICA[st];
+  if(st === 'erro' && _wixDiag.erro) dica = _wixExplicarErro(_wixDiag.erro.texto) + ' A plataforma tenta de novo sozinha. Clique para ver os detalhes.';
+  else if(st === 'offline' && _wixDiag.erroCarga) dica = _wixExplicarErro(_wixDiag.erroCarga) + ' Enquanto isso, seus dados ficam neste navegador. Clique para ver os detalhes.';
+  else if(WIX_MODE) dica += ' Clique para ver os detalhes.';
+  document.querySelectorAll('[data-sync]').forEach(el => { el.dataset.st = st; el.title = dica; });
   document.querySelectorAll('[data-sync-text]').forEach(el => { el.textContent = SYNC_TXT[st]; });
+  if(document.getElementById('modal-nuvem')?.classList.contains('open')) renderDiagnosticoNuvem();
+}
+
+// ── Diagnóstico do salvamento (clique no indicador do topo) ────────────────
+// Mostra o que o indicador resume: onde os dados estão, o tamanho de cada um, o último erro devolvido pelo Wix
+// e botões para tentar de novo, copiar o relatório (para o suporte) e baixar um backup.
+const NUVEM_NOMES = {
+  carteira_acoes_v4: 'Operações e notas importadas', carteira_titular_v1: 'Perfil (titular)', simulador_afec_v2: 'Simulador AFEC',
+  controle_gastos_v1: 'Controle de gastos', gastos_categorias_v1: 'Categorias de gastos', receb_categorias_v1: 'Categorias de receitas',
+  darf_historico_v1: 'DARFs pagos', carteira_settings_v1: 'Configurações', orphan_ignored_v1: 'Ativos ignorados', ticker_rename_cache_v1: 'Renomes de tickers',
+};
+let _nuvemTimer = null;
+function _nuvemKB(chars){ return (chars / 1024).toLocaleString('pt-BR', { minimumFractionDigits: 1, maximumFractionDigits: 1 }) + ' KB'; }
+function _nuvemAtras(ts){
+  if(!ts) return 'ainda não nesta sessão';
+  const s = Math.max(0, Math.round((Date.now() - ts) / 1000));
+  if(s < 60) return 'há ' + s + ' s';
+  if(s < 3600) return 'há ' + Math.round(s / 60) + ' min';
+  return 'às ' + new Date(ts).toLocaleTimeString('pt-BR', { hour: '2-digit', minute: '2-digit' });
+}
+function _nuvemEscape(t){ return String(t == null ? '' : t).replace(/[&<>"]/g, c => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;' }[c])); }
+// Tamanho de cada dado sincronizado, como está neste navegador
+function _nuvemDados(){
+  const lista = [];
+  WIX_SYNC_KEYS.forEach(k => {
+    let v = null; try { v = localStorage.getItem(k); } catch(e){}
+    if(v == null || v === '') return;
+    lista.push({ chave: k, nome: NUVEM_NOMES[k] || k, chars: v.length, partes: v.length > WIX_LINHA_MAX ? Math.ceil(v.length / WIX_PEDACO) : 0 });
+  });
+  return lista.sort((a, b) => b.chars - a.chars);
+}
+function _nuvemSituacao(){
+  const st = document.getElementById('sync-pill')?.dataset.st || 'local';
+  return { st, titulo: SYNC_TXT[st] || st };
+}
+function renderDiagnosticoNuvem(){
+  const corpo = document.getElementById('nuvem-corpo');
+  if(!corpo) return;
+  const { st, titulo } = _nuvemSituacao();
+  const dados = _nuvemDados();
+  const total = dados.reduce((s, d) => s + d.chars, 0);
+  const pend = Object.keys(_wixSaveQueue).length + (_wixTx ? Object.keys(_wixTx.original).length : 0);
+  let explica = SYNC_DICA[st] || '';
+  if(st === 'erro' && _wixDiag.erro) explica = _wixExplicarErro(_wixDiag.erro.texto);
+  const cls = st === 'erro' ? 'erro' : ((st === 'offline' || st === 'pausado') ? 'offline' : '');
+  let h = `<div class="nuvem-status ${cls}"><div><b>${_nuvemEscape(titulo)}</b>${_nuvemEscape(explica)}</div></div>`;
+  if(WIX_MODE){
+    h += `<div style="font-size:12px;color:var(--text2);margin:10px 0 2px;line-height:1.7">
+      Último salvamento confirmado: <b>${_nuvemAtras(_wixDiag.ultimoOk)}</b> · envios nesta sessão: <b>${_wixDiag.envios}</b> · falhas: <b>${_wixDiag.falhas}</b>${pend ? ` · <b>${pend}</b> dado(s) aguardando envio` : ''}</div>`;
+  }
+  if(_wixDiag.erro){
+    const e = _wixDiag.erro;
+    h += `<div class="warn-box" style="margin-top:10px"><b>Último erro</b> (${_nuvemAtras(e.quando)}, tentativa ${e.tentativa}): ${_nuvemEscape(_wixExplicarErro(e.texto))}
+      <div class="nuvem-mono" style="margin-top:6px">Resposta do Wix: ${_nuvemEscape(e.texto)}</div></div>`;
+  }
+  if(_wixDiag.erroCarga){
+    h += `<div class="warn-box" style="margin-top:10px"><b>Não consegui carregar da nuvem:</b> ${_nuvemEscape(_wixExplicarErro(_wixDiag.erroCarga))}
+      <div class="nuvem-mono" style="margin-top:6px">Resposta do Wix: ${_nuvemEscape(_wixDiag.erroCarga)}</div></div>`;
+  }
+  const seguradas = Object.keys(_wixSegurados);
+  if(seguradas.length){
+    h += `<div class="warn-box" style="margin-top:10px"><b>Salvamento pausado:</b> os dados de ${seguradas.map(k => _nuvemEscape(NUVEM_NOMES[k] || k)).join(', ')} guardados na nuvem estão incompletos e este navegador não tem uma cópia. Para não apagar o que está lá, nada novo desses dados é enviado. Abra a plataforma no computador onde você a usava antes, ou fale com o suporte.
+      <div style="margin-top:8px"><button class="btn btn-danger btn-sm" onclick="liberarSegurados()">Liberar e substituir o que está na nuvem…</button></div></div>`;
+  } else if(_wixDiag.cargaProblemas.length){
+    h += `<div class="nuvem-status offline" style="margin-top:10px"><div>Na última leitura, a nuvem tinha partes incompletas de: ${_wixDiag.cargaProblemas.map(k => _nuvemEscape(NUVEM_NOMES[k] || k)).join(', ')}. A cópia deste navegador foi mantida e reenviada.</div></div>`;
+  }
+  h += `<table class="nuvem-tab" style="margin-top:14px"><thead><tr><th>Dado</th><th style="text-align:right">Tamanho</th></tr></thead><tbody>`;
+  dados.forEach(d => {
+    const pct = Math.min(100, d.chars / WIX_LINHA_MAX * 100);
+    h += `<tr><td>${_nuvemEscape(d.nome)}${d.partes ? `<div style="font-size:11px;color:var(--text3)">grande: guardado na nuvem em ${d.partes} partes</div>` : ''}<div class="nuvem-bar"><i style="width:${pct.toFixed(0)}%"></i></div></td><td class="num">${_nuvemKB(d.chars)}</td></tr>`;
+  });
+  if(!dados.length) h += `<tr><td colspan="2" style="color:var(--text3)">Ainda não há dados guardados.</td></tr>`;
+  h += `</tbody></table>
+    <div style="font-size:11px;color:var(--text3);margin-top:8px;line-height:1.6">Total: ${_nuvemKB(total)} · ${ops.length} operações. O Wix aceita no máximo 512 KB por registro; dados maiores que ${Math.round(WIX_LINHA_MAX / 1000)} mil caracteres são divididos automaticamente em partes.${WIX_MODE ? '' : ' Fora do site, tudo fica só neste navegador.'}</div>`;
+  corpo.innerHTML = h;
+  const btn = document.getElementById('nuvem-tentar');
+  if(btn) btn.style.display = WIX_MODE ? '' : 'none';
+}
+function abrirDiagnosticoNuvem(){
+  const m = document.getElementById('modal-nuvem');
+  if(!m) return;
+  renderDiagnosticoNuvem();
+  m.classList.add('open');
+  if(_nuvemTimer) clearInterval(_nuvemTimer);
+  _nuvemTimer = setInterval(() => { if(m.classList.contains('open')) renderDiagnosticoNuvem(); else { clearInterval(_nuvemTimer); _nuvemTimer = null; } }, 2000);
+}
+function fecharDiagnosticoNuvem(){
+  document.getElementById('modal-nuvem')?.classList.remove('open');
+  if(_nuvemTimer){ clearInterval(_nuvemTimer); _nuvemTimer = null; }
+}
+// Reenvia TUDO o que há neste navegador (cópia completa), não só o que ficou na fila
+function tentarSalvarNuvem(){
+  if(!WIX_MODE){ toast('Fora do site, os dados ficam só neste navegador.', 'info'); return; }
+  if(!_wixReady){ toast('Ainda conectando à nuvem — aguarde alguns segundos e tente de novo.', 'info'); return; }
+  WIX_SYNC_KEYS.forEach(k => {
+    if(_wixSegurados[k]) return;
+    let v = null; try { v = localStorage.getItem(k); } catch(e){}
+    if(v != null && v !== '') _wixSaveQueue[k] = _filtrarExemplo(k, v);
+  });
+  if(_wixRetryTimer){ clearTimeout(_wixRetryTimer); _wixRetryTimer = null; }
+  atualizarSyncPill('salvando');
+  wixFlushSaveNow();
+  toast('Enviando seus dados para a nuvem…', 'info');
+}
+// Chaves que o app segurou porque a nuvem tinha partes incompletas e este navegador não tem cópia
+function liberarSegurados(){
+  const nomes = Object.keys(_wixSegurados).map(k => NUVEM_NOMES[k] || k).join(', ');
+  if(!confirm('Os dados de "' + nomes + '" na nuvem estão incompletos e este navegador não tem uma cópia.\n\nSe você continuar, o que você registrar daqui para a frente vai SUBSTITUIR o que está na nuvem. Continuar?')) return;
+  _wixSegurados = {};
+  if(Object.keys(_wixSaveQueue).length){ atualizarSyncPill('salvando'); wixFlushSaveNow(); }
+  else atualizarSyncPill('nuvem');
+  renderDiagnosticoNuvem();
+}
+function relatorioNuvem(){
+  const { st, titulo } = _nuvemSituacao();
+  const L = [];
+  L.push('Relatório de salvamento — Import Money Carteira de Ações');
+  L.push('Gerado em: ' + new Date().toLocaleString('pt-BR'));
+  L.push('Situação: ' + titulo + ' (' + st + ') · dentro do Wix: ' + (WIX_MODE ? 'sim' : 'não') + ' · nuvem respondeu: ' + (_wixReady ? 'sim' : 'não'));
+  L.push('Último salvamento confirmado: ' + _nuvemAtras(_wixDiag.ultimoOk) + ' · envios: ' + _wixDiag.envios + ' · falhas: ' + _wixDiag.falhas + ' · na fila: ' + Object.keys(_wixSaveQueue).join(', '));
+  if(_wixDiag.erro) L.push('Último erro (' + new Date(_wixDiag.erro.quando).toLocaleTimeString('pt-BR') + ', tentativa ' + _wixDiag.erro.tentativa + '): ' + _wixDiag.erro.texto + ' · chaves: ' + _wixDiag.erro.chaves.join(', '));
+  if(_wixDiag.erroCarga) L.push('Erro ao carregar: ' + _wixDiag.erroCarga);
+  if(_wixDiag.cargaProblemas.length) L.push('Partes incompletas na nuvem: ' + _wixDiag.cargaProblemas.join(', '));
+  L.push('Tamanhos neste navegador (caracteres): ' + _nuvemDados().map(d => d.chave + '=' + d.chars + (d.partes ? ' (' + d.partes + ' partes)' : '')).join(' · '));
+  L.push('Tamanhos na nuvem na última leitura: ' + (Object.keys(_wixDiag.nuvem).length ? Object.entries(_wixDiag.nuvem).map(([k, n]) => k + '=' + n).join(' · ') : '—'));
+  L.push('Versão da plataforma: ' + APP_VERSAO + ' · operações: ' + ops.length + ' · navegador: ' + navigator.userAgent);
+  return L.join('\n');
+}
+function copiarRelatorioNuvem(){
+  const txt = relatorioNuvem();
+  const fallback = () => {
+    const ta = document.createElement('textarea');
+    ta.value = txt; ta.style.cssText = 'position:fixed;left:-9999px;top:0'; document.body.appendChild(ta); ta.select();
+    let ok = false; try { ok = document.execCommand('copy'); } catch(e){}
+    ta.remove();
+    toast(ok ? 'Relatório copiado.' : 'Não consegui copiar automaticamente.', ok ? 'success' : 'warn');
+  };
+  try { navigator.clipboard.writeText(txt).then(() => toast('Relatório copiado.'), fallback); } catch(e){ fallback(); }
 }
 
 document.addEventListener('DOMContentLoaded', () => {
@@ -16982,15 +17431,48 @@ function renderBanner(usandoDefault) {
   };
 
   const items = bannerData.map(makeItem).join('');
-  // Duplicar para scroll contínuo sem reset visível
-  track.innerHTML = items + items;
-
-  // Ajustar velocidade pela quantidade de itens
-  const duracao = Math.max(30, bannerData.length * 4); // 4s por item
-  track.style.animationDuration = duracao + 's';
-
   if (loading) loading.style.display = 'none';
   track.style.display = 'flex';
+  // Duplicar para scroll contínuo sem reset visível (a 2ª metade repete a 1ª; a volta anda -50%)
+  track.innerHTML = items + items;
+  // Poucas cotações: se um conjunto não cobre a largura da barra, repete o conjunto até cobrir — senão aparece
+  // um buraco no fim de cada volta
+  const larguraBarra = (document.getElementById('ticker-banner') || {}).clientWidth || 0;
+  const larguraConjunto = track.scrollWidth / 2;
+  if (larguraConjunto > 0 && larguraBarra > larguraConjunto) {
+    const vezes = Math.ceil(larguraBarra / larguraConjunto);
+    track.innerHTML = items.repeat(vezes) + items.repeat(vezes);
+  }
+  ajustarVelocidadeFaixa(track);
+}
+
+// Velocidade da faixa de cotações do topo, em px por segundo — a mesma para qualquer quantidade de ativos.
+// (Antes era "4 s por cotação", ≈ 45 px/s: com vários ativos a faixa passava rápido demais. O padrão agora é
+// lento, ≈ 24 px/s, e dá para mudar em Minha conta → Preferências. Passar o mouse por cima pausa.)
+// (BANNER_VEL fica junto de SETTINGS_DEFAULT)
+function bannerPxPorSeg() { const v = getSettings().bannerVel; return BANNER_VEL[v] || BANNER_VEL.lenta; }
+function ajustarVelocidadeFaixa(track) {
+  track = track || document.getElementById('ticker-banner-track');
+  if (!track) return;
+  const conjunto = track.scrollWidth / 2;
+  if (!(conjunto > 0)) return;   // faixa escondida (celular) ou vazia
+  const seg = Math.max(30, Math.round(conjunto / bannerPxPorSeg()));
+  const atual = parseFloat(track.style.animationDuration) || 0;
+  if (atual && Math.abs(seg - atual) / atual < 0.03) return;   // diferença pequena: deixa como está
+  // Muda a duração sem dar "pulo" na faixa que já está rolando: guarda onde ela estava e volta para o mesmo ponto
+  let anim = null, frac = null;
+  try {
+    anim = (track.getAnimations ? track.getAnimations() : []).find(a => a.animationName === 'tickerScroll') || null;
+    if (anim) { const p = anim.effect.getComputedTiming().progress; if (typeof p === 'number') frac = p; }
+  } catch (e) {}
+  track.style.animationDuration = seg + 's';
+  try { if (anim && frac !== null) anim.currentTime = frac * seg * 1000; } catch (e) {}
+}
+function aplicarVelocidadeBanner(valor) {
+  const s = getSettings();
+  s.bannerVel = BANNER_VEL[valor] ? valor : 'lenta';
+  try { localStorage.setItem(SETTINGS_KEY, JSON.stringify(s)); } catch (e) {}
+  ajustarVelocidadeFaixa();
 }
 
 async function iniciarBanner() {
@@ -17159,6 +17641,13 @@ renderTourToggleBtn();
   if (reparadas > 0) {
     window._bootRenameMsg = (window._bootRenameMsg ? window._bootRenameMsg + ' · ' : '') +
       `🔧 ${reparadas} operaç${reparadas===1?'ão':'ões'} de conversão corrigida${reparadas===1?'':'s'} (ticker de origem restaurado)`;
+  }
+  // Opções gravadas sobre o ativo-objeto errado (KLBN4 em vez de KLBN11)
+  let opcoesCorrigidas = 0;
+  try { opcoesCorrigidas = repararAtivoObjetoOpcoes(); } catch (e) { console.warn('[Opções] correção do ativo-objeto falhou:', e); }
+  if (opcoesCorrigidas > 0) {
+    window._bootRenameMsg = (window._bootRenameMsg ? window._bootRenameMsg + ' · ' : '') +
+      `🔧 ${opcoesCorrigidas} opç${opcoesCorrigidas===1?'ão corrigida':'ões corrigidas'}: o ativo-objeto agora é a unit (ex.: KLBN11)`;
   }
 })();
 
