@@ -132,7 +132,7 @@ body{font-family:var(--font);background:var(--bg);color:var(--text);font-size:14
 
 /* Ticker Banner */
 .ticker-banner{width:100%;background:#021a11;color:#e8e6e0;overflow:hidden;height:32px;display:flex;align-items:center;flex-shrink:0;z-index:20;border-bottom:1px solid #0a3d22}
-.ticker-banner-track{display:flex;align-items:center;gap:0;white-space:nowrap;animation:tickerScroll 60s linear infinite;will-change:transform}
+.ticker-banner-track{display:flex;align-items:center;gap:0;white-space:nowrap;animation:tickerScroll 240s linear infinite;will-change:transform}
 .ticker-banner:hover .ticker-banner-track{animation-play-state:paused}
 @keyframes tickerScroll{0%{transform:translateX(0)}100%{transform:translateX(-50%)}}
 .ticker-item{display:inline-flex;align-items:center;gap:6px;padding:0 18px;font-size:11.5px;font-family:'DM Mono',monospace;border-right:1px solid #2a2a2a;height:32px;cursor:default;transition:background .15s}
@@ -980,6 +980,25 @@ svg.i.lg{width:22px;height:22px}
 .nuvem-status.erro{border-color:var(--neg);color:var(--neg)}
 .nuvem-status.offline{border-color:var(--warn)}
 .nuvem-mono{font-family:'DM Mono',monospace;font-size:11.5px;word-break:break-word;color:var(--text2)}
+/* Histórico: setas ▲▼ no cabeçalho para ordenar a coluna (crescente / decrescente) */
+/* As setas ficam na margem interna direita do cabeçalho (posição absoluta): não aumentam a largura das colunas,
+   então a tabela continua cabendo na tela. */
+#hist-thead th{position:relative}
+.th-sort{position:absolute;right:0;top:50%;transform:translateY(-50%);display:flex;flex-direction:column;line-height:1}
+.th-arrow{position:relative;appearance:none;-webkit-appearance:none;background:none;border:0;margin:0;padding:0;cursor:pointer;font-size:7px;line-height:8px;color:var(--text3);opacity:.55;font-family:inherit}
+.th-arrow::before{content:"";position:absolute;inset:-2px -4px}   /* área de clique maior que o desenho, sem ocupar espaço */
+.th-arrow:hover{opacity:1;color:var(--text)}
+.th-arrow:focus-visible{opacity:1;outline:2px solid var(--info);outline-offset:1px;border-radius:2px}
+.th-arrow.on{opacity:1;color:var(--info)}
+@media(max-width:768px){
+  /* celular: setas maiores (toque) — a tabela já rola na horizontal dentro do cartão */
+  #hist-table-wrap #hist-thead th{padding-right:24px}
+  .th-arrow{font-size:11px;line-height:13px;padding:1px 5px}
+}
+#hist-thead th.ord-ativa{color:var(--text)}
+.hist-ordem-chip{display:inline-flex;align-items:center;gap:6px;background:var(--surface2);border:1px solid var(--border);border-radius:999px;padding:2px 4px 2px 10px;font-size:11px;color:var(--text2)}
+.hist-ordem-chip button{appearance:none;background:none;border:0;cursor:pointer;color:var(--text3);font-size:12px;line-height:1;padding:2px 5px;border-radius:50%}
+.hist-ordem-chip button:hover{background:var(--border);color:var(--text)}
 
 /* ── Cotações ao vivo (faixa) ── */
 .ticker-banner{background:var(--surface);color:var(--text);border-bottom:1px solid var(--border);height:34px}
@@ -1251,7 +1270,32 @@ td.ell{overflow:hidden;text-overflow:ellipsis;white-space:nowrap}.nota-num{displ
 .pg-head-meta{font-size:12px;color:var(--text2);display:flex;align-items:center;gap:6px}
 .pg-grid{gap:12px}
 .pg-grid-5{grid-template-columns:repeat(5,minmax(0,1fr))}
-.pg-cols{display:grid;grid-template-columns:1fr 1fr;gap:16px}
+/* Painel Global compacto: tudo na mesma tela, sem rolar. Cada item dos rankings é uma linha só (posição · ativo · preço ·
+   variação) e as quatro listas (ações e FIIs, altas e quedas) formam uma grade de 2 colunas. */
+.pg-wrap{gap:12px}
+.pg-section{gap:6px}
+.pg-title{margin-bottom:4px}
+.pg-grid{gap:10px}
+.pg-title-row{display:flex;align-items:center;justify-content:space-between;gap:4px 12px;flex-wrap:wrap}
+.pg-title-row .pg-title{margin-bottom:0}
+.pg-idx-card{padding:7px 14px;gap:1px}
+.pg-idx-card>*{line-height:1.25}
+.pg-idx-val{font-size:16px}
+.pg-moeda-card{padding:6px 12px;gap:10px;min-width:0}
+.pg-rankings{display:grid;grid-template-columns:1fr 1fr;gap:10px 16px}
+.pg-grid.pg-rank{gap:4px}
+.pg-card.pg-rank-row{flex-direction:row;align-items:center;gap:10px;padding:4px 12px;border-radius:10px;line-height:1.35}
+.pg-rank-row .pg-card-ticker{min-width:76px;white-space:nowrap}
+.pg-rank-row .pg-card-price{margin-left:auto;font-size:13px;font-weight:500;letter-spacing:0}
+.pg-rank-row .pg-card-change{min-width:62px;text-align:right}
+.pg-rank-row.pg-sk{padding:8px 12px}
+/* Janela baixa (notebook 1280×720...): as quatro listas lado a lado, uma linha de 4 colunas */
+@media(min-width:1250px) and (max-height:760px){
+  .pg-rankings{grid-template-columns:repeat(4,minmax(0,1fr));gap:12px}
+  .pg-card.pg-rank-row{gap:8px;padding:4px 9px}
+  .pg-rank-row .pg-card-ticker{min-width:62px}
+  .pg-rank-row .pg-card-change{min-width:54px}
+}
 .pg-title.alta{border-color:var(--pos)}.pg-title.baixa{border-color:var(--neg)}
 .pg-title.fii-alta{border-color:var(--info)}.pg-title.fii-baixa{border-color:var(--warn)}
 .pg-card-price.up,.pg-idx-val.up{color:var(--pos)}
@@ -1261,7 +1305,7 @@ td.ell{overflow:hidden;text-overflow:ellipsis;white-space:nowrap}.nota-num{displ
 @keyframes pgShimmer{0%{background-position:200% 0}100%{background-position:-200% 0}}
 @keyframes pgPulse{0%,100%{opacity:1}50%{opacity:.3}}
 @media(max-width:1000px){.pg-grid-5{grid-template-columns:repeat(2,minmax(0,1fr))}}
-@media(max-width:700px){.pg-cols{grid-template-columns:1fr}.pg-grid-3{grid-template-columns:1fr}}
+@media(max-width:700px){.pg-rankings{grid-template-columns:1fr}.pg-grid-3{grid-template-columns:1fr}}
 
 /* ── Primeiros passos e dados de exemplo ── */
 .onboard{background:linear-gradient(160deg,var(--surface) 0%,var(--surface2) 100%);border:1px solid var(--border);border-radius:var(--radius);padding:28px 28px 24px;margin-bottom:20px}
@@ -1812,15 +1856,18 @@ body[data-aba="entrada"] .fab{display:none!important}
         <div id="hist-info" style="display:flex;justify-content:space-between;align-items:center;padding:8px 4px;font-size:12px;color:var(--text3);margin-bottom:4px;flex-wrap:wrap;gap:8px"></div>
         <div class="table-wrap" id="hist-table-wrap" style="overflow-x:auto">
           <table>
-            <thead><tr>
-              <th>Data</th><th>Tipo</th><th>Ticker</th>
-              <th style="text-align:right">Qtd</th>
-              <th style="text-align:right">Preço</th>
-              <th style="text-align:right">Total bruto</th>
-              <th style="text-align:right">Líquido</th>
-              <th style="text-align:right">PM após op.</th>
-              <th style="text-align:right">Posição</th>
-              <th>Corretora</th><th>Nota</th><th></th>
+            <thead><tr id="hist-thead">
+              <th data-col="data">Data <span class="th-sort"></span></th>
+              <th data-col="tipo">Tipo <span class="th-sort"></span></th>
+              <th data-col="ticker">Ticker <span class="th-sort"></span></th>
+              <th data-col="qtd" style="text-align:right">Qtd <span class="th-sort"></span></th>
+              <th data-col="preco" style="text-align:right">Preço <span class="th-sort"></span></th>
+              <th data-col="total" style="text-align:right">Total bruto <span class="th-sort"></span></th>
+              <th data-col="liq" style="text-align:right">Líquido <span class="th-sort"></span></th>
+              <th data-col="pm" style="text-align:right">PM após op. <span class="th-sort"></span></th>
+              <th data-col="pos" style="text-align:right">Posição <span class="th-sort"></span></th>
+              <th data-col="corretora">Corretora <span class="th-sort"></span></th>
+              <th data-col="nota">Nota <span class="th-sort"></span></th><th></th>
             </tr></thead>
             <tbody id="hist-tbody"></tbody>
           </table>
@@ -2251,7 +2298,7 @@ body[data-aba="entrada"] .fab{display:none!important}
         <div class="acct-card">
           <div class="acct-card-title">Sobre a plataforma</div>
           <div style="display:grid;grid-template-columns:1fr 1fr;gap:12px;font-size:13px">
-            <div><span style="color:var(--text3)">Versão</span><br><strong id="sobre-versao">2.2.0</strong></div>
+            <div><span style="color:var(--text3)">Versão</span><br><strong id="sobre-versao">2.2.1</strong></div>
             <div><span style="color:var(--text3)">Armazenamento</span><br><strong id="sobre-armazenamento">localStorage</strong></div>
             <div><span style="color:var(--text3)">Cotações</span><br><strong>Yahoo Finance · BVMF</strong></div>
             <div><span style="color:var(--text3)">Leitura de notas</span><br><strong>PDF.js 3.11</strong></div>
@@ -2662,7 +2709,7 @@ const WIX_RESPOSTA_MAX_MS = (window.__imTeste && window.__imTeste.respostaMs) ||
 const WIX_ESPERAS   = (window.__imTeste && window.__imTeste.esperas) || [3000, 8000, 20000, 45000, 60000];   // espera entre tentativas depois de uma falha (a última repete)
 
 // Versão da plataforma (aparece em Minha conta → Sobre e no relatório de salvamento: ajuda a saber qual versão o cliente está usando)
-const APP_VERSAO = '2.2.0 · 16/10/2026';
+const APP_VERSAO = '2.2.1 · 16/10/2026';
 
 // O que o indicador do topo mostra quando se clica nele (Diagnóstico da nuvem)
 const _wixDiag = { ultimoOk: 0, erro: null, falhas: 0, envios: 0, erroCarga: '', cargaProblemas: [], nuvem: {}, ultimoResumo: null };
@@ -3030,6 +3077,8 @@ let wixBootApp = (semNuvem) => {
   try { const r=localStorage.getItem(KEY); if(r) ops=JSON.parse(r); } catch(e){}
   try { repararPernasDeConversao(); } catch(e){}
   try { const k=repararAtivoObjetoOpcoes(); if(k>0) setTimeout(()=>toast(`🔧 ${k} opç${k===1?'ão corrigida':'ões corrigidas'}: o ativo-objeto agora é a unit (ex.: KLBN11)`), 800); } catch(e){}
+  // a velocidade da faixa de cotações vem das configurações: as da nuvem acabaram de chegar
+  try { if(typeof ajustarVelocidadeFaixa === 'function') ajustarVelocidadeFaixa(); } catch(e){}
   try { const r=localStorage.getItem(SIM_KEY); if(r) simState=JSON.parse(r); } catch(e){}
   try { const r=localStorage.getItem(GASTOS_KEY); if(r) gastosData=JSON.parse(r); } catch(e){}
   // Reaplicar configurações (tema, sidebar compacta/auto-ocultar etc.) agora que
@@ -4331,10 +4380,82 @@ function limparFiltrosHistorico(){
   ['hist-ticker-filter','hist-tipo','hist-ano','hist-busca'].forEach(id=>{
     const el=document.getElementById(id); if(el) el.value='';
   });
+  histOrdem = null;
+  histPagAtual = 1;
   renderHistorico();
 }
 let histPagAtual = 1;
 const HIST_POR_PAG = 20;
+
+// ── Ordenar o Histórico pelas colunas (setas ▲ crescente / ▼ decrescente no cabeçalho) ──
+// Sem escolha, a ordem é a de sempre: data, da mais recente para a mais antiga. A ordem vale para a lista inteira
+// (todas as páginas), depois dos filtros. Linhas sem valor naquela coluna (ex.: marcador de conversão) ficam sempre no fim.
+const HIST_COLUNAS = {
+  data:      { nome:'Data',          tipo:'texto'  },
+  tipo:      { nome:'Tipo',          tipo:'texto'  },
+  ticker:    { nome:'Ticker',        tipo:'texto'  },
+  qtd:       { nome:'Qtd',           tipo:'numero' },
+  preco:     { nome:'Preço',         tipo:'numero' },
+  total:     { nome:'Total bruto',   tipo:'numero' },
+  liq:       { nome:'Líquido',       tipo:'numero' },
+  pm:        { nome:'PM após op.',   tipo:'numero' },
+  pos:       { nome:'Posição',       tipo:'numero' },
+  corretora: { nome:'Corretora',     tipo:'texto'  },
+  nota:      { nome:'Nota',          tipo:'texto'  },
+};
+let histOrdem = null;   // {col, dir:'asc'|'desc'} ou null (= data, mais recente primeiro)
+
+function montarSetasHistorico(){
+  document.querySelectorAll('#hist-thead th[data-col]').forEach(th=>{
+    const col = th.dataset.col, nome = HIST_COLUNAS[col]?.nome || col;
+    const alvo = th.querySelector('.th-sort'); if(!alvo || alvo.childElementCount) return;
+    const menorMaior = HIST_COLUNAS[col]?.tipo === 'texto' ? 'de A a Z' : 'do menor para o maior';
+    const maiorMenor = HIST_COLUNAS[col]?.tipo === 'texto' ? 'de Z a A' : 'do maior para o menor';
+    alvo.innerHTML =
+      `<button type="button" class="th-arrow up" data-dir="asc" onclick="ordenarHistorico('${col}','asc')" title="${nome}: ${menorMaior}" aria-label="Ordenar a coluna ${nome} ${menorMaior}" aria-pressed="false">▲</button>` +
+      `<button type="button" class="th-arrow down" data-dir="desc" onclick="ordenarHistorico('${col}','desc')" title="${nome}: ${maiorMenor}" aria-label="Ordenar a coluna ${nome} ${maiorMenor}" aria-pressed="false">▼</button>`;
+  });
+}
+function ordenarHistorico(col, dir){
+  if(!HIST_COLUNAS[col]) return;
+  // clicar de novo na seta já ativa desfaz a ordem escolhida (volta à data)
+  histOrdem = (histOrdem && histOrdem.col === col && histOrdem.dir === dir) ? null : { col, dir };
+  histPagAtual = 1;
+  renderHistorico();
+}
+function atualizarSetasHistorico(){
+  montarSetasHistorico();
+  document.querySelectorAll('#hist-thead th[data-col]').forEach(th=>{
+    const ativa = histOrdem && histOrdem.col === th.dataset.col;
+    th.classList.toggle('ord-ativa', !!ativa);
+    if(ativa) th.setAttribute('aria-sort', histOrdem.dir === 'asc' ? 'ascending' : 'descending'); else th.removeAttribute('aria-sort');
+    th.querySelectorAll('.th-arrow').forEach(b=>{
+      const on = !!ativa && b.dataset.dir === histOrdem.dir;
+      b.classList.toggle('on', on);
+      b.setAttribute('aria-pressed', on ? 'true' : 'false');
+    });
+  });
+}
+// valor da linha na coluna escolhida (null = sem valor: vai para o fim em qualquer direção)
+function valorOrdemHistorico(o, col, pmMap, posMap){
+  const ehMarcadorConv = o.tipo === 'Conversão';
+  const total = +o.preco * +o.qtd, taxa = +o.taxa || 0;
+  switch(col){
+    case 'data':      return o.data || null;
+    case 'tipo':      return o._conversao ? (o.tipo==='Venda' ? 'Conv. ↗' : 'Conv. ↙') : (o.tipo || null);
+    case 'ticker':    return (o.ticker||'').toUpperCase() || null;
+    case 'qtd':       return ehMarcadorConv ? null : (+o.qtd);
+    case 'preco':     return ehMarcadorConv ? null : (+o.preco);
+    case 'total':     return ehMarcadorConv ? null : total;
+    case 'liq':       return (ehMarcadorConv || o._conversao) ? null
+                           : ((o.tipo==='Compra'||o.tipo==='IPO') ? -(total+taxa) : o.tipo==='Venda' ? total-taxa : total);
+    case 'pm':        { const v = pmMap[o._id]; return (!ehMarcadorConv && v > 0) ? v : null; }
+    case 'pos':       { const v = posMap[o._id]; return (!ehMarcadorConv && v != null) ? v : null; }
+    case 'corretora': return (o.corretora||'') || null;
+    case 'nota':      return (o.nota||'') ? String(o.nota) : null;
+  }
+  return null;
+}
 
 function renderHistorico(pag){
   if(pag !== undefined) histPagAtual = pag;
@@ -4363,6 +4484,24 @@ function renderHistorico(pag){
       return true;
     });
 
+  // Ordem escolhida pelas setas do cabeçalho (sem escolha: data, mais recente primeiro). Empates e linhas sem valor
+  // na coluna mantêm a ordem por data.
+  if(histOrdem && HIST_COLUNAS[histOrdem.col]){
+    const { col, dir } = histOrdem;
+    const num = HIST_COLUNAS[col].tipo === 'numero', sinal = dir === 'asc' ? 1 : -1;
+    const base = new Map(filtered.map((o, i) => [o, i]));
+    const val  = new Map(filtered.map(o => [o, valorOrdemHistorico(o, col, pmMap, posMap)]));
+    filtered.sort((a, b) => {
+      const va = val.get(a), vb = val.get(b);
+      if(va == null && vb == null) return base.get(a) - base.get(b);
+      if(va == null) return 1;
+      if(vb == null) return -1;
+      const c = num ? (va - vb) : String(va).localeCompare(String(vb), 'pt-BR', { numeric:true, sensitivity:'base' });
+      return c ? c * sinal : base.get(a) - base.get(b);
+    });
+  }
+  atualizarSetasHistorico();
+
   const empty  = document.getElementById('hist-empty');
   const tbody  = document.getElementById('hist-tbody');
   const infoEl = document.getElementById('hist-info');
@@ -4387,9 +4526,11 @@ function renderHistorico(pag){
   const pagina = filtered.slice(inicio, fim);
 
   // Info bar
+  const chipOrdem = histOrdem && HIST_COLUNAS[histOrdem.col]
+    ? ` <span class="hist-ordem-chip">Ordem: ${HIST_COLUNAS[histOrdem.col].nome} ${histOrdem.dir==='asc'?'▲ crescente':'▼ decrescente'} <button type="button" onclick="histOrdem=null;histPagAtual=1;renderHistorico()" title="Voltar à ordem por data" aria-label="Voltar à ordem por data">✕</button></span>` : '';
   if(infoEl) infoEl.innerHTML = `
     <span><strong>${filtered.length}</strong> operaç${filtered.length!==1?'ões':'ão'} encontrada${filtered.length!==1?'s':''}
-      <span style="color:var(--text3)">· Exibindo ${inicio+1}–${fim}</span></span>
+      <span style="color:var(--text3)">· Exibindo ${inicio+1}–${fim}</span>${chipOrdem}</span>
     <span style="color:var(--text3)">Página ${histPagAtual} de ${totalPags} · ${HIST_POR_PAG} por página</span>`;
 
   // Tabela
@@ -11914,7 +12055,13 @@ function _nuvemSituacao(){
   const st = document.getElementById('sync-pill')?.dataset.st || 'local';
   return { st, titulo: SYNC_TXT[st] || st };
 }
-function renderDiagnosticoNuvem(){
+// "há 9 s": o texto de tempo é atualizado NO LUGAR (sem redesenhar o painel todo, o que desfazia a seleção de texto
+// e podia "comer" um clique no meio do redesenho)
+function _nuvemTempo(ts, tag = 'b'){ return `<${tag} class="nuvem-t" data-ts="${+ts || 0}">${_nuvemAtras(ts)}</${tag}>`; }
+function atualizarTemposNuvem(){
+  document.querySelectorAll('#nuvem-corpo .nuvem-t').forEach(el => { el.textContent = _nuvemAtras(+el.dataset.ts); });
+}
+function renderDiagnosticoNuvem(forcar){
   const corpo = document.getElementById('nuvem-corpo');
   if(!corpo) return;
   const { st, titulo } = _nuvemSituacao();
@@ -11927,11 +12074,11 @@ function renderDiagnosticoNuvem(){
   let h = `<div class="nuvem-status ${cls}"><div><b>${_nuvemEscape(titulo)}</b>${_nuvemEscape(explica)}</div></div>`;
   if(WIX_MODE){
     h += `<div style="font-size:12px;color:var(--text2);margin:10px 0 2px;line-height:1.7">
-      Último salvamento confirmado: <b>${_nuvemAtras(_wixDiag.ultimoOk)}</b> · envios nesta sessão: <b>${_wixDiag.envios}</b> · falhas: <b>${_wixDiag.falhas}</b>${pend ? ` · <b>${pend}</b> dado(s) aguardando envio` : ''}</div>`;
+      Último salvamento confirmado: ${_nuvemTempo(_wixDiag.ultimoOk)} · envios nesta sessão: <b>${_wixDiag.envios}</b> · falhas: <b>${_wixDiag.falhas}</b>${pend ? ` · <b>${pend}</b> dado(s) aguardando envio` : ''}</div>`;
   }
   if(_wixDiag.erro){
     const e = _wixDiag.erro;
-    h += `<div class="warn-box" style="margin-top:10px"><b>Último erro</b> (${_nuvemAtras(e.quando)}, tentativa ${e.tentativa}): ${_nuvemEscape(_wixExplicarErro(e.texto))}
+    h += `<div class="warn-box" style="margin-top:10px"><b>Último erro</b> (${_nuvemTempo(e.quando, 'span')}, tentativa ${e.tentativa}): ${_nuvemEscape(_wixExplicarErro(e.texto))}
       <div class="nuvem-mono" style="margin-top:6px">Resposta do Wix: ${_nuvemEscape(e.texto)}</div></div>`;
   }
   if(_wixDiag.erroCarga){
@@ -11953,14 +12100,17 @@ function renderDiagnosticoNuvem(){
   if(!dados.length) h += `<tr><td colspan="2" style="color:var(--text3)">Ainda não há dados guardados.</td></tr>`;
   h += `</tbody></table>
     <div style="font-size:11px;color:var(--text3);margin-top:8px;line-height:1.6">Total: ${_nuvemKB(total)} · ${ops.length} operações. O Wix aceita no máximo 512 KB por registro; dados maiores que ${Math.round(WIX_LINHA_MAX / 1000)} mil caracteres são divididos automaticamente em partes.${WIX_MODE ? '' : ' Fora do site, tudo fica só neste navegador.'}</div>`;
-  corpo.innerHTML = h;
+  // só redesenha quando algo mudou além do texto de tempo
+  const assinatura = h.replace(/(class="nuvem-t" data-ts="\d+">)[^<]*</g, '$1<');
+  if(forcar === true || corpo._assinatura !== assinatura){ corpo.innerHTML = h; corpo._assinatura = assinatura; }
+  atualizarTemposNuvem();
   const btn = document.getElementById('nuvem-tentar');
   if(btn) btn.style.display = WIX_MODE ? '' : 'none';
 }
 function abrirDiagnosticoNuvem(){
   const m = document.getElementById('modal-nuvem');
   if(!m) return;
-  renderDiagnosticoNuvem();
+  renderDiagnosticoNuvem(true);
   m.classList.add('open');
   if(_nuvemTimer) clearInterval(_nuvemTimer);
   _nuvemTimer = setInterval(() => { if(m.classList.contains('open')) renderDiagnosticoNuvem(); else { clearInterval(_nuvemTimer); _nuvemTimer = null; } }, 2000);
@@ -12004,6 +12154,11 @@ function relatorioNuvem(){
   if(_wixDiag.cargaProblemas.length) L.push('Partes incompletas na nuvem: ' + _wixDiag.cargaProblemas.join(', '));
   L.push('Tamanhos neste navegador (caracteres): ' + _nuvemDados().map(d => d.chave + '=' + d.chars + (d.partes ? ' (' + d.partes + ' partes)' : '')).join(' · '));
   L.push('Tamanhos na nuvem na última leitura: ' + (Object.keys(_wixDiag.nuvem).length ? Object.entries(_wixDiag.nuvem).map(([k, n]) => k + '=' + n).join(' · ') : '—'));
+  // barra de cotações do topo: o que ajuda a entender "está rápido demais"
+  try {
+    const tr = document.getElementById('ticker-banner-track'), bar = document.getElementById('ticker-banner');
+    if(tr) L.push('Barra de cotações: opção=' + (getSettings().bannerVel || 'lenta') + ' · duração da volta=' + (tr.style.animationDuration || '(padrão do CSS)') + ' · largura do conjunto=' + Math.round(tr.scrollWidth / 2) + 'px · largura da barra=' + (bar ? bar.clientWidth : 0) + 'px · cotações=' + (tr.querySelectorAll('.ticker-item').length / 2) + ' · janela=' + innerWidth + 'x' + innerHeight + ' · zoom/pixel=' + (window.devicePixelRatio || 1));
+  } catch(e){}
   L.push('Versão da plataforma: ' + APP_VERSAO + ' · operações: ' + ops.length + ' · navegador: ' + navigator.userAgent);
   return L.join('\n');
 }
@@ -12122,12 +12277,11 @@ async function renderPainelGlobal() {
   if(!jaPossuiDados) {
     el.innerHTML = `
     <div class="pg-wrap">
-      <div class="pg-head">
-        <span class="pg-head-meta"><span class="pg-live-dot"></span>Buscando cotações…</span>
-      </div>
-
       <div class="pg-section">
-        <div class="pg-title">Índices</div>
+        <div class="pg-title-row">
+          <div class="pg-title">Índices</div>
+          <span class="pg-head-meta"><span class="pg-live-dot"></span>Buscando cotações…</span>
+        </div>
         <div class="pg-grid pg-grid-5">
           ${Array(5).fill(0).map(()=>`
             <div class="pg-idx-card">
@@ -12152,18 +12306,18 @@ async function renderPainelGlobal() {
         </div>
       </div>
 
-      <div class="pg-cols">
-        ${Array(2).fill(0).map((_, ri)=>`
+      <div class="pg-rankings">
+        ${['alta|Ações — Maiores Altas','baixa|Ações — Maiores Quedas','fii-alta|FIIs — Maiores Altas','fii-baixa|FIIs — Maiores Quedas'].map(s=>{ const [c,t]=s.split('|'); return `
           <div class="pg-section">
-            <div class="pg-title ${ri===0?'alta':'baixa'}">${ri===0?'Ações — Maiores Altas':'Ações — Maiores Quedas'}</div>
-            <div class="pg-grid" style="grid-template-columns:1fr">
+            <div class="pg-title ${c}">${t}</div>
+            <div class="pg-grid pg-rank" style="grid-template-columns:1fr">
               ${Array(5).fill(0).map(()=>`
-                <div class="pg-card" style="flex-direction:row;justify-content:space-between;align-items:center">
+                <div class="pg-card pg-rank-row pg-sk">
                   <div class="pg-skel" style="height:11px;width:45px;border-radius:3px"></div>
-                  <div class="pg-skel" style="height:14px;width:55px;border-radius:3px"></div>
+                  <div class="pg-skel" style="height:11px;width:55px;border-radius:3px;margin-left:auto"></div>
                 </div>`).join('')}
             </div>
-          </div>`).join('')}
+          </div>`; }).join('')}
       </div>
     </div>`;
   }
@@ -12194,12 +12348,11 @@ async function renderPainelGlobal() {
   const rankCard = (d, i) => {
     if(!d?.price) return '';
     const v = pct(d);
-    return `<div class="pg-card">
-      <div style="display:flex;justify-content:space-between;align-items:center">
-        <span class="pg-card-ticker"><span class="pg-rank">${i+1}.</span>${d.tk}</span>
-        <span class="pg-card-change ${cls(v)}">${fmtP(v)}</span>
-      </div>
+    // uma linha só: posição · ativo ........ preço · variação
+    return `<div class="pg-card pg-rank-row">
+      <span class="pg-card-ticker"><span class="pg-rank">${i+1}.</span>${d.tk}</span>
       <span class="pg-card-price ${cls(v)}">R$${fmtV(d.price)}</span>
+      <span class="pg-card-change ${cls(v)}">${fmtP(v)}</span>
     </div>`;
   };
 
@@ -12290,17 +12443,15 @@ async function renderPainelGlobal() {
 
   el.innerHTML = `<div class="pg-wrap">
 
-    <!-- Estado do mercado -->
-    <div class="pg-head">
-      <span class="pg-head-meta">
-        <span class="pg-live-dot"></span>
-        <span>${estadoLabel} · ${dadosLabel} · ${hora} · atualiza em 20s</span>
-      </span>
-    </div>
-
-    <!-- Índices principais -->
+    <!-- Índices principais (o estado do mercado fica na mesma linha do título, para economizar altura) -->
     <div class="pg-section">
-      <div class="pg-title">Índices</div>
+      <div class="pg-title-row">
+        <div class="pg-title">Índices</div>
+        <span class="pg-head-meta">
+          <span class="pg-live-dot"></span>
+          <span>${estadoLabel} · ${dadosLabel} · ${hora} · atualiza em 20s</span>
+        </span>
+      </div>
       <div class="pg-grid pg-grid-5">
         ${idxCard('IBOVESPA', ibov)}
         ${idxCard('IFIX', ifix)}
@@ -12320,33 +12471,29 @@ async function renderPainelGlobal() {
       </div>
     </div>
 
-    <!-- Rankings Ações -->
-    <div class="pg-cols">
+    <!-- Rankings: ações e FIIs, altas e quedas — as quatro listas na mesma tela -->
+    <div class="pg-rankings">
       <div class="pg-section">
         <div class="pg-title alta">📈 Ações — Maiores Altas</div>
-        <div class="pg-grid" style="grid-template-columns:1fr">
+        <div class="pg-grid pg-rank" style="grid-template-columns:1fr">
           ${top5A.map(rankCard).join('')}
         </div>
       </div>
       <div class="pg-section">
         <div class="pg-title baixa">📉 Ações — Maiores Quedas</div>
-        <div class="pg-grid" style="grid-template-columns:1fr">
+        <div class="pg-grid pg-rank" style="grid-template-columns:1fr">
           ${bot5A.map(rankCard).join('')}
         </div>
       </div>
-    </div>
-
-    <!-- Rankings FIIs -->
-    <div class="pg-cols">
       <div class="pg-section">
         <div class="pg-title fii-alta">🏢 FIIs — Maiores Altas</div>
-        <div class="pg-grid" style="grid-template-columns:1fr">
+        <div class="pg-grid pg-rank" style="grid-template-columns:1fr">
           ${top5F.map(rankCard).join('')}
         </div>
       </div>
       <div class="pg-section">
         <div class="pg-title fii-baixa">🏢 FIIs — Maiores Quedas</div>
-        <div class="pg-grid" style="grid-template-columns:1fr">
+        <div class="pg-grid pg-rank" style="grid-template-columns:1fr">
           ${bot5F.map(rankCard).join('')}
         </div>
       </div>
@@ -17438,12 +17585,37 @@ function renderBanner(usandoDefault) {
   // Poucas cotações: se um conjunto não cobre a largura da barra, repete o conjunto até cobrir — senão aparece
   // um buraco no fim de cada volta
   const larguraBarra = (document.getElementById('ticker-banner') || {}).clientWidth || 0;
+  _bannerLarg = larguraBarra;
   const larguraConjunto = track.scrollWidth / 2;
   if (larguraConjunto > 0 && larguraBarra > larguraConjunto) {
     const vezes = Math.ceil(larguraBarra / larguraConjunto);
     track.innerHTML = items.repeat(vezes) + items.repeat(vezes);
   }
   ajustarVelocidadeFaixa(track);
+}
+
+// A faixa só tem largura (e velocidade calculável) quando está VISÍVEL. No Wix o iframe costuma abrir estreito
+// (≤ 768 px a faixa fica escondida) e alargar depois; também há a troca de fontes, a rotação do tablet, o
+// redimensionamento da janela. Antes, nesses casos a duração nunca era calculada e valia o padrão do CSS (rápido),
+// mesmo com "Muito lenta" escolhida. Agora a faixa é refeita sempre que a largura da barra muda de verdade.
+let _bannerLarg = -1, _bannerObs = null, _bannerTimer = null;
+function bannerRedimensionou() {
+  clearTimeout(_bannerTimer);   // arrastar a borda da janela dispara muitos avisos: espera assentar
+  _bannerTimer = setTimeout(() => {
+    const bar = document.getElementById('ticker-banner');
+    if (!bar || !bannerData.length) return;
+    const w = bar.clientWidth;
+    if (Math.abs(w - _bannerLarg) < 4) return;   // nada mudou de verdade (evita laço com o próprio redesenho)
+    _bannerLarg = w;
+    if (w > 0) renderBanner();                    // visível: cobre a largura nova e recalcula a velocidade
+  }, 120);
+}
+function observarFaixaDeCotacoes() {
+  const bar = document.getElementById('ticker-banner');
+  if (!bar || _bannerObs) return;
+  if (typeof ResizeObserver !== 'undefined') { _bannerObs = new ResizeObserver(() => requestAnimationFrame(bannerRedimensionou)); _bannerObs.observe(bar); }
+  else window.addEventListener('resize', bannerRedimensionou);
+  try { if (document.fonts && document.fonts.ready) document.fonts.ready.then(() => { _bannerLarg = -1; bannerRedimensionou(); ajustarVelocidadeFaixa(); }); } catch (e) {}
 }
 
 // Velocidade da faixa de cotações do topo, em px por segundo — a mesma para qualquer quantidade de ativos.
@@ -17476,6 +17648,7 @@ function aplicarVelocidadeBanner(valor) {
 }
 
 async function iniciarBanner() {
+  observarFaixaDeCotacoes();
   // Tentar usar cache primeiro (atualização instantânea)
   const cached = JSON.parse(localStorage.getItem(BANNER_CACHE_KEY) || 'null');
   const cacheAge = cached ? Date.now() - (cached.ts || 0) : Infinity;
