@@ -2379,7 +2379,7 @@ a.btn,a.btn:hover{text-decoration:none}
         <div class="acct-card">
           <div class="acct-card-title">Sobre a plataforma</div>
           <div style="display:grid;grid-template-columns:1fr 1fr;gap:12px;font-size:13px">
-            <div><span style="color:var(--text3)">Versão</span><br><strong id="sobre-versao">2.3.0</strong></div>
+            <div><span style="color:var(--text3)">Versão</span><br><strong id="sobre-versao">2.3.1</strong></div>
             <div><span style="color:var(--text3)">Armazenamento</span><br><strong id="sobre-armazenamento">localStorage</strong></div>
             <div><span style="color:var(--text3)">Cotações</span><br><strong>Yahoo Finance · BVMF</strong></div>
             <div><span style="color:var(--text3)">Leitura de notas</span><br><strong>PDF.js 3.11</strong></div>
@@ -2804,7 +2804,7 @@ const WIX_RESPOSTA_MAX_MS = (window.__imTeste && window.__imTeste.respostaMs) ||
 const WIX_ESPERAS   = (window.__imTeste && window.__imTeste.esperas) || [3000, 8000, 20000, 45000, 60000];   // espera entre tentativas depois de uma falha (a última repete)
 
 // Versão da plataforma (aparece em Minha conta → Sobre e no relatório de salvamento: ajuda a saber qual versão o cliente está usando)
-const APP_VERSAO = '2.3.0 · 27/10/2026';
+const APP_VERSAO = '2.3.1 · 30/10/2026';
 
 // O que o indicador do topo mostra quando se clica nele (Diagnóstico da nuvem)
 const _wixDiag = { ultimoOk: 0, erro: null, falhas: 0, envios: 0, erroCarga: '', cargaProblemas: [], nuvem: {}, ultimoResumo: null };
@@ -4105,13 +4105,31 @@ function computeOpcoes(){
       if(vDeriv) opcaoBase.vencimento = vDeriv;
     }
     if(!opcaoBase.serie) opcaoBase.serie = tk;
-    if(!opts[tk]) opts[tk]={ticker:tk,tipo:op.tipo,qtd:0,premioMedio:0,totalPremio:0,nOps:0,
+    if(!opts[tk]) opts[tk]={ticker:tk,tipo:op.tipo,qtd:0,saldo:0,premioMedio:0,totalPremio:0,nOps:0,
       _opcao:opcaoBase,_cv:op._cv||'',data:op.data,corretora:op.corretora||''};
-    const o=opts[tk]; o.nOps++;
-    o.qtd+= +op.qtd;
-    o.totalPremio+= +op.preco* +op.qtd;
-    o.premioMedio=o.qtd>0?o.totalPremio/o.qtd:0;
-    if(op._cv) o._cv = op._cv;
+    const o=opts[tk];
+    // Posição com sinal: venda (V, lançador) tira, compra (C, titular) põe. Antes somava a quantidade de
+    // todas as operações — a recompra de uma call lançada DOBRAVA a posição em vez de zerá-la
+    // (KLBNK186: venda de 1.100 em 07/10 + recompra de 1.100 em 29/10 aparecia como 2.200 "Comprada").
+    const q = +op.qtd || 0, pr = +op.preco || 0;
+    const lado = String(op._cv||'').toUpperCase() === 'V' ? -1 : 1;
+    if(o.saldo === 0){ o.nOps = 0; o.totalPremio = 0; o.data = op.data; } // posição nova: conta só as operações dela
+    o.nOps++;
+    if(o.saldo === 0 || Math.sign(o.saldo) === lado){
+      // abre ou aumenta no mesmo sentido: prêmio médio ponderado
+      o.totalPremio += pr * q;
+      o.saldo += lado * q;
+    } else {
+      // fecha (toda ou parte) a posição aberta: o prêmio médio do que sobra não muda
+      const fecha = Math.min(q, Math.abs(o.saldo));
+      o.totalPremio -= o.premioMedio * fecha;
+      o.saldo += lado * fecha;
+      const sobra = q - fecha; // passou do zero: abre no sentido oposto com o prêmio desta operação
+      if(sobra > 0){ o.totalPremio = pr * sobra; o.saldo = lado * sobra; o.nOps = 1; o.data = op.data; }
+    }
+    o.qtd = Math.abs(o.saldo);
+    o.premioMedio = o.qtd > 0 ? o.totalPremio / o.qtd : 0;
+    if(o.saldo !== 0) o._cv = o.saldo < 0 ? 'V' : 'C';
   }
   // Retornar apenas opções com vencimento futuro (posições abertas)
   // Opções vencidas ficam apenas no histórico, não nas posições abertas
@@ -6731,11 +6749,13 @@ function parsearSecaoNota(texto){
   const irrfDT  = irrfDTm ? parseValNota(irrfDTm[1])
                 : extrairValorLinhaSeguinte('IRRF\\s+IRRF\\s+Day\\s+Trade', 1).valor;
 
-  // "Total Custos / Despesas" = soma oficial de todas as taxas da nota
-  // Se vier zero (ex: notas Clear/XP sem corretagem), usa "Total Bovespa / Soma" como fallback
+  // "Total Custos / Despesas" = corretagem, ISS e demais despesas da corretora.
+  // "Total Bovespa / Soma" NÃO é corretagem: é a soma das taxas da bolsa (emolumentos etc.), que já entram em
+  // "emolumentos". Antes ele virava corretagem quando a nota não tinha corretagem (Clear/XP) e essas taxas
+  // contavam duas vezes no custo (nota de 07/10/2026: R$ 1,20 em vez de R$ 0,94). Agora só cobre a falta do rótulo "Emolumentos".
   const totalCustos  = extrairValor('Total Custos');
   const totalBovespa = extrairValor('Total Bovespa');
-  const corretagem   = totalCustos > 0 ? totalCustos : totalBovespa;
+  const corretagem   = totalCustos;
 
   // "123,45 Líquido para DD/MM/AAAA   D" (ordem invertida — tentada primeiro)
   // ou "Líquido para DD/MM/AAAA   123,45 D" (demais formatos)
@@ -6765,7 +6785,7 @@ function parsearSecaoNota(texto){
   const financeiro = {
     taxaLiquidacao,
     taxaRegistro,
-    emolumentos,
+    emolumentos: emolumentos || totalBovespa,
     taxaTransf,
     taxaOperacional,
     execucao,
@@ -7004,11 +7024,15 @@ function confirmarNota(){
     const nr = (n.nota||'').trim() || '_sem_nota';
     if (!custosPorNota[nr]) {
       const fi = n._financeiro || {};
-      // Custo total da nota = emolumentos + corretagem + taxa liquidação + taxa registro
-      // Excluímos IRRF pois já é registrado separadamente
-      const total = (fi.emolumentos||0) + (fi.corretagem||0)
+      // Custo total da nota: de preferência as "Despesas da Operação" (|Líquido para DD/MM − Valor líquido
+      // das operações|), que é exatamente o que a corretora cobrou, com o IRRF à parte. A soma das taxas por
+      // rótulo fica de reserva (notas sem esses dois valores e notas de futuros/BM&F): numa nota em que um
+      // valor aparece ao lado do rótulo errado, ela pode errar (nota Clear/XP de 07/10/2026: somava R$ 15,09
+      // em vez de R$ 12,05 de custos).
+      const somaTaxas = (fi.emolumentos||0) + (fi.corretagem||0)
                   + (fi.taxaLiquidacao||0) + (fi.taxaRegistro||0)
                   + (fi.taxaTransf||0) + (fi.taxaOperacional||0);
+      const total = (fi.despesasOperacao > 0 && n._mercado !== 'FUTURO') ? fi.despesasOperacao : somaTaxas;
       custosPorNota[nr] = { total, volTotal: 0 };
     }
   });
@@ -14608,6 +14632,9 @@ function calcularIRMesPuro(anoMes, prejSTAntes, prejDTAntes, prejFIIAntes) {
   for (const op of opsDoMes) {
     if(op._mercado === 'FUTURO') continue;
     const tk = (op.ticker||'').toUpperCase();
+    // O IRRF de 0,005% também é retido na VENDA de opções (nota de 07/10/2026: "I.R.R.F. s/ operações,
+    // base R$715,00"). O resultado das opções vem de calcResOpcoesMes, mais abaixo.
+    if((op.tipo==='Opção Call'||op.tipo==='Opção Put') && String(op._cv||'').toUpperCase()==='V') irrfST += (+op.preco * +op.qtd) * 0.00005;
     if(!pmMes[tk]) pmMes[tk]={qtd:0,pmAdj:0};
     const p = pmMes[tk];
 
@@ -14695,7 +14722,11 @@ function calcularIRMesPuro(anoMes, prejSTAntes, prejDTAntes, prejFIIAntes) {
   // (ETFs, BDRs e opções não têm isenção de R$20k — por isso o volume de ETF/BDR
   // nem entra em totalVendasST, e o ganho deles fica em stETF)
   const totalVendasAcoesST = totalVendasST; // já separado acima
-  const isento = (totalVendasAcoesST <= 20000) && stAcoes > 0 && stOpcoes <= 0;
+  // O resultado de opções é tributado à parte e NÃO tira a isenção das ações (Lei 11.033/2004, art. 3º, I:
+  // a isenção é do ganho com ações no mercado à vista quando as vendas de ações do mês somam até R$ 20 mil).
+  // Antes havia "&& stOpcoes <= 0": um mês com lucro em opções (ex.: recompra de call lançada) tributava
+  // também o ganho isento das ações.
+  const isento = (totalVendasAcoesST <= 20000) && stAcoes > 0;
   // Se isento: ganho de ações não entra na base, mas opções e ETFs/BDRs ainda tributam
   const stBaseCalcAcoes = isento ? 0 : stAcoes;
   const stBaseCalc = Math.max(0, (stBaseCalcAcoes + stOpcoes + stETF) - prejSTAntes);
