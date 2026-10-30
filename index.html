@@ -134,6 +134,10 @@ body{font-family:var(--font);background:var(--bg);color:var(--text);font-size:14
 .ticker-banner{width:100%;background:#021a11;color:#e8e6e0;overflow:hidden;height:32px;display:flex;align-items:center;flex-shrink:0;z-index:20;border-bottom:1px solid #0a3d22}
 .ticker-banner-track{display:flex;align-items:center;gap:0;white-space:nowrap;animation:tickerScroll 240s linear infinite;will-change:transform}
 .ticker-banner:hover .ticker-banner-track{animation-play-state:paused}
+/* Opção "Parada": nada anda; quem quiser ver as demais cotações rola a faixa de lado (sem barra de rolagem à mostra) */
+.ticker-banner.ticker-parado{overflow-x:auto;overflow-y:hidden;scrollbar-width:none;-ms-overflow-style:none}
+.ticker-banner.ticker-parado::-webkit-scrollbar{display:none}
+.ticker-banner.ticker-parado .ticker-banner-track{animation:none;will-change:auto;transform:none}
 @keyframes tickerScroll{0%{transform:translateX(0)}100%{transform:translateX(-50%)}}
 .ticker-item{display:inline-flex;align-items:center;gap:6px;padding:0 18px;font-size:11.5px;font-family:'DM Mono',monospace;border-right:1px solid #2a2a2a;height:32px;cursor:default;transition:background .15s}
 .ticker-item:hover{background:#042a1a}
@@ -1398,6 +1402,68 @@ body[data-aba="entrada"] .fab{display:none!important}
   .mobile-nav-item .mn-label{font-size:10px}
   .kpis .kgroup{grid-template-columns:1fr}
 }
+/* ── Planos (gratuito × pagos) e o link para o Import Finances ──
+   Tudo do plano gratuito depende da classe body.plano-gratis (ver definirPlano): sem ela, nada aparece. */
+a.nav-item{text-decoration:none}
+.nav-item .nav-ext-ic,.nav-item .nav-lock{width:14px;height:14px;margin-left:auto;color:var(--text3);flex:none}
+.nav-item .nav-lock{display:none}
+body.plano-gratis .nav-item .nav-lock{display:inline-block}
+.sidebar.compact .nav-ext-ic,.sidebar.compact .nav-lock{display:none!important}
+.plano-top{display:none;color:var(--green);border-color:color-mix(in srgb,var(--green) 55%,var(--border2));gap:6px}
+body.plano-gratis .plano-top{display:inline-flex}
+.plano-top svg.i{width:16px;height:16px}
+@media(max-width:1180px){.topbar .btn.plano-top{width:auto;padding:0 14px}}
+.mobile-topbar .plano-top{min-height:34px;padding:0 10px;font-size:12.5px}
+@media(max-width:360px){.mobile-topbar .plano-top span{display:none}.mobile-topbar .plano-top{padding:0 8px}}
+.faixa-plano{display:flex;align-items:center;flex-wrap:wrap;gap:10px 12px;padding:10px 14px;border-radius:12px;border:1px solid var(--border2);background:var(--surface2);font-size:13px;color:var(--text2);line-height:1.5}
+.faixa-plano.cheio{background:var(--amber-bg);border-color:color-mix(in srgb,var(--amber) 35%,transparent);color:var(--amber)}
+.faixa-plano b{color:var(--text)}
+.faixa-plano.cheio b{color:inherit}
+.faixa-plano svg.i{flex:none;width:16px;height:16px}
+.faixa-plano .grow{flex:1 1 220px;min-width:0}
+.faixa-plano .btn{flex:none}
+.uso{display:flex;flex-direction:column;gap:6px}
+.uso-l{display:flex;justify-content:space-between;gap:10px;font-size:13.5px;color:var(--text2)}
+.uso-l b{color:var(--text)}
+.uso-bar{height:8px;border-radius:999px;background:var(--surface2);border:1px solid var(--border);overflow:hidden}
+.uso-bar i{display:block;height:100%;background:var(--green);border-radius:999px}
+.uso.cheio .uso-bar i{background:var(--warn)}
+.uso-hint{font-size:12.5px;color:var(--text3)}
+.cmp-planos{width:100%;min-width:0!important;border-collapse:collapse;font-size:13.5px;table-layout:fixed}   /* (no celular há um table{min-width:500px} geral) */
+.cmp-planos th,.cmp-planos td{padding:8px;border-bottom:1px solid var(--border);text-align:left;vertical-align:top;white-space:normal;background:none}
+.cmp-planos thead th{font-size:11.5px;text-transform:uppercase;letter-spacing:.04em;color:var(--text3)}
+.cmp-planos thead th:first-child{width:52%}
+.cmp-planos tbody th{font-size:13.5px;font-weight:600;color:var(--text2);text-transform:none;letter-spacing:0}
+.cmp-planos caption{position:absolute;width:1px;height:1px;overflow:hidden;clip:rect(0 0 0 0);white-space:nowrap}
+a.btn,a.btn:hover{text-decoration:none}
+.cmp-planos td.sim{color:var(--green);font-weight:700}
+.cmp-planos td.nao{color:var(--text3)}
+.planos-venda{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:10px}
+.pv{display:flex;flex-direction:column;gap:4px;padding:14px;border:1px solid var(--border2);border-radius:14px;background:var(--surface);min-width:0}
+.pv.pv-destaque{border-color:var(--green);box-shadow:inset 0 0 0 1px var(--green)}
+.pv-chip{align-self:flex-start;font-size:11px;font-weight:700;padding:2px 9px;border-radius:999px;background:var(--green-dim);color:var(--green);margin-bottom:2px}
+.pv-nome{font-size:15px}
+.pv-preco{font-size:21px;font-weight:800;color:var(--text);letter-spacing:-.01em}
+.pv-preco small{font-size:13px;font-weight:600;color:var(--text2)}
+.pv-total{font-size:12.5px;color:var(--text2)}
+.pv-inclui{font-size:12.5px;color:var(--text2);line-height:1.45;margin-top:4px;flex:1}
+.pv .pv-assinar{margin-top:10px;white-space:normal;text-align:center;line-height:1.25;padding:6px 12px}
+.planos-acoes .planos-hint{flex:1 1 260px}
+.planos-acoes{display:flex;flex-wrap:wrap;gap:8px;align-items:center}
+.planos-hint{font-size:12.5px;color:var(--text3);line-height:1.5}
+.planos-stack{display:flex;flex-direction:column;gap:16px}
+.planos-stack>p{font-size:14px;color:var(--text);line-height:1.6}
+.bloq-wrap{max-width:860px;margin:0 auto;display:flex;flex-direction:column;gap:18px}
+.bloq-head{display:flex;gap:14px;align-items:flex-start}
+.bloq-ic{width:48px;height:48px;border-radius:14px;background:var(--green-dim);color:var(--green);display:grid;place-items:center;flex:none}
+.bloq-ic svg.i{width:24px;height:24px}
+.bloq-head h2{font-size:20px;letter-spacing:-.01em;margin-bottom:4px;color:var(--text)}
+.bloq-head p{color:var(--text2);font-size:14px;line-height:1.55}
+.bloq-lista{display:grid;gap:8px;padding:0;margin:0;list-style:none}
+.bloq-lista li{display:flex;gap:10px;align-items:flex-start;font-size:14px;color:var(--text);line-height:1.5}
+.bloq-lista li svg.i{color:var(--green);flex:none;margin-top:3px;width:16px;height:16px}
+#conta-plano-card .planos-acoes{margin-top:12px}
+@media(max-width:768px){.planos-venda{grid-template-columns:1fr}.cmp-planos{font-size:12.5px}.cmp-planos tbody th{font-size:12.5px}.cmp-planos th,.cmp-planos td{padding:7px 5px}.cmp-planos thead th:first-child{width:44%}.bloq-head h2{font-size:18px}.bloq-ic{width:42px;height:42px}}
 @media print{.sidebar,.topbar,.mobile-topbar,.mobile-nav,.fab,.ticker-banner{display:none!important}body{overflow:visible}.layout{display:block;height:auto}.main-scroll{overflow:visible}}
 </style>
 </head>
@@ -1446,6 +1512,10 @@ body[data-aba="entrada"] .fab{display:none!important}
   <symbol id="i-sparkles" viewBox="0 0 24 24"><path d="M12 3l1.9 5.1L19 10l-5.1 1.9L12 17l-1.9-5.1L5 10l5.1-1.9z"/><path d="M19 3v4M21 5h-4"/></symbol>
   <symbol id="i-edit" viewBox="0 0 24 24"><path d="M12 20h9"/><path d="M16.5 3.5a2.121 2.121 0 0 1 3 3L7 19l-4 1 1-4z"/></symbol>
   <symbol id="i-file-text" viewBox="0 0 24 24"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/><path d="M14 2v6h6M16 13H8M16 17H8M10 9H8"/></symbol>
+  <symbol id="i-crown" viewBox="0 0 24 24"><path d="M3 8l4.5 4L12 5l4.5 7L21 8l-2 10H5z"/><path d="M5 21h14"/></symbol>
+  <symbol id="i-lock" viewBox="0 0 24 24"><rect x="4" y="11" width="16" height="10" rx="2"/><path d="M8 11V7a4 4 0 0 1 8 0v4"/></symbol>
+  <symbol id="i-external" viewBox="0 0 24 24"><path d="M15 3h6v6M10 14 21 3M18 13v6a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V8a2 2 0 0 1 2-2h6"/></symbol>
+  <symbol id="i-wallet" viewBox="0 0 24 24"><path d="M20 7V5a2 2 0 0 0-2-2H5a2 2 0 0 0 0 4h15a1 1 0 0 1 1 1v12a1 1 0 0 1-1 1H5a2 2 0 0 1-2-2V5"/><path d="M16 14h.01"/></symbol>
 </defs></svg>
 <div class="layout">
   <!-- ── Barra superior do celular ──────────────────────────────── -->
@@ -1457,6 +1527,7 @@ body[data-aba="entrada"] .fab{display:none!important}
     </svg>
     <div class="mobile-topbar-title" id="mobile-topbar-title">Dashboard</div>
     <div class="mobile-topbar-actions">
+      <button class="btn plano-top" id="btn-plano-top-m" onclick="abrirPlanos()" title="Plano gratuito: veja o que a assinatura libera"><svg class="i"><use href="#i-crown"/></svg><span>Upgrade</span></button>
       <span class="sync-pill sync-compact" data-sync title="Seus dados" data-st="local" role="button" tabindex="0" aria-label="Situação do salvamento" onclick="abrirDiagnosticoNuvem()" onkeydown="if(event.key==='Enter'||event.key===' '){event.preventDefault();abrirDiagnosticoNuvem()}"><i></i></span>
       <button class="btn icon ghost js-tema-btn" onclick="alternarTemaRapido()" aria-label="Mudar para o tema escuro" title="Mudar para o tema escuro"><svg class="i"><use href="#i-moon"/></svg></button>
     </div>
@@ -1524,14 +1595,15 @@ body[data-aba="entrada"] .fab{display:none!important}
       <button type="button" class="nav-item" data-tab="entrada" title="Registrar operação"><svg class="i"><use href="#i-plus-circle"/></svg><span class="nav-label">Registrar operação</span></button>
       <button type="button" class="nav-item" data-tab="notas" title="Notas importadas"><svg class="i"><use href="#i-notes"/></svg><span class="nav-label">Notas importadas</span></button>
       <div class="nav-group">Impostos</div>
-      <button type="button" class="nav-item" data-tab="ir" title="Imposto de Renda"><svg class="i"><use href="#i-receipt"/></svg><span class="nav-label">Imposto de Renda</span></button>
+      <button type="button" class="nav-item" data-tab="ir" title="Imposto de Renda"><svg class="i"><use href="#i-receipt"/></svg><span class="nav-label">Imposto de Renda</span><svg class="i nav-lock" aria-label="dos planos pagos"><use href="#i-lock"/></svg></button>
       <div class="nav-group">Mercado e metas</div>
-      <button type="button" class="nav-item" data-tab="painel" title="Painel de acompanhamento das metas do Simulador"><svg class="i"><use href="#i-monitor"/></svg><span class="nav-label">Painel</span></button>
+      <button type="button" class="nav-item" data-tab="painel" title="Painel de acompanhamento das metas do Simulador"><svg class="i"><use href="#i-monitor"/></svg><span class="nav-label">Painel</span><svg class="i nav-lock" aria-label="dos planos pagos"><use href="#i-lock"/></svg></button>
       <button type="button" class="nav-item" data-tab="global" title="Painel Global: cotações ao vivo, rankings, moedas e índices"><svg class="i"><use href="#i-globe"/></svg><span class="nav-label">Painel Global</span></button>
-      <button type="button" class="nav-item" data-tab="simulador" title="Simulador AFEC"><svg class="i"><use href="#i-target"/></svg><span class="nav-label">Simulador AFEC</span></button>
+      <button type="button" class="nav-item" data-tab="simulador" title="Simulador AFEC"><svg class="i"><use href="#i-target"/></svg><span class="nav-label">Simulador AFEC</span><svg class="i nav-lock" aria-label="dos planos pagos"><use href="#i-lock"/></svg></button>
       <button type="button" class="nav-item" data-tab="comparacao" title="Comparar carteiras"><svg class="i"><use href="#i-bars"/></svg><span class="nav-label">Comparar carteiras</span></button>
       <div class="nav-group">Finanças pessoais</div>
-      <button type="button" class="nav-item" data-tab="gastos" title="Controle de gastos"><svg class="i"><use href="#i-card"/></svg><span class="nav-label">Controle de gastos</span></button>
+      <!-- Antes era a aba "Controle de gastos": agora leva à plataforma Import Finances, no site (os dados antigos de gastos continuam guardados) -->
+      <a class="nav-item nav-ext" data-link="import-finances" href="https://www.importmoney.com/import-finances" target="_top" title="Import Finances: seu controle financeiro pessoal (abre a plataforma no site Import Money)"><svg class="i"><use href="#i-wallet"/></svg><span class="nav-label">Import Finances</span><svg class="i nav-ext-ic" aria-hidden="true"><use href="#i-external"/></svg></a>
       <div class="nav-group">Conta</div>
       <button type="button" class="nav-item" data-tab="conta" title="Minha conta"><svg class="i"><use href="#i-user"/></svg><span class="nav-label">Minha conta</span></button>
     </nav>
@@ -1548,6 +1620,7 @@ body[data-aba="entrada"] .fab{display:none!important}
         <div class="topbar-sub" id="topbar-sub">Visão geral da carteira</div>
       </div>
       <div class="topbar-actions">
+        <button class="btn plano-top" id="btn-plano-top" onclick="abrirPlanos()" title="Plano gratuito: veja o que a assinatura libera"><svg class="i"><use href="#i-crown"/></svg><span>Fazer upgrade</span></button>
         <span class="sync-pill" id="sync-pill" data-sync data-st="local" title="Onde seus dados estão guardados" role="button" tabindex="0" onclick="abrirDiagnosticoNuvem()" onkeydown="if(event.key==='Enter'||event.key===' '){event.preventDefault();abrirDiagnosticoNuvem()}"><i></i><span data-sync-text>Salvo neste navegador</span></span>
         <button class="btn icon ghost js-tema-btn" id="btn-tema-rapido" onclick="alternarTemaRapido()" aria-label="Mudar para o tema escuro" title="Mudar para o tema escuro"><svg class="i"><use href="#i-moon"/></svg></button>
         <button class="btn" onclick="document.getElementById('file-import').click()" title="Importar um arquivo CSV ou planilha do seu histórico"><svg class="i"><use href="#i-upload"/></svg><span class="lbl">Importar CSV</span></button>
@@ -2099,7 +2172,13 @@ body[data-aba="entrada"] .fab{display:none!important}
       </div>
 
       <!-- CONTA -->
+      <!-- Aba dos planos pagos aberta no plano gratuito (Imposto de Renda, Simulador AFEC, Painel): ver renderAbaBloqueada -->
+      <div id="panel-bloqueado" class="panel"></div>
+
       <div id="panel-conta" class="panel">
+
+        <!-- Seu plano (dentro do Wix, quando o plano é conhecido): ver renderCartaoPlano -->
+        <div class="acct-card" id="conta-plano-card" style="display:none"></div>
 
         <!-- Perfil -->
         <div class="acct-card" id="conta-perfil-card">
@@ -2256,9 +2335,11 @@ body[data-aba="entrada"] .fab{display:none!important}
           <div class="toggle-wrap pref-banner">
             <div>
               <div class="toggle-label">Velocidade da barra de cotações</div>
-              <div class="toggle-desc">A faixa de cotações no topo rola sozinha; passe o mouse por cima para pausar</div>
+              <div class="toggle-desc">A faixa de cotações no topo rola sozinha; passe o mouse por cima para pausar. Em "Parada" ela fica fixa e você a move com a rolagem lateral (touchpad ou Shift + roda do mouse)</div>
             </div>
             <select id="sel-banner-vel" class="sel-sm" onchange="aplicarVelocidadeBanner(this.value)" aria-label="Velocidade da barra de cotações">
+              <option value="parada">Parada</option>
+              <option value="extra-lenta">Extra lenta</option>
               <option value="muito-lenta">Muito lenta</option>
               <option value="lenta">Lenta</option>
               <option value="normal">Normal</option>
@@ -2298,7 +2379,7 @@ body[data-aba="entrada"] .fab{display:none!important}
         <div class="acct-card">
           <div class="acct-card-title">Sobre a plataforma</div>
           <div style="display:grid;grid-template-columns:1fr 1fr;gap:12px;font-size:13px">
-            <div><span style="color:var(--text3)">Versão</span><br><strong id="sobre-versao">2.2.1</strong></div>
+            <div><span style="color:var(--text3)">Versão</span><br><strong id="sobre-versao">2.3.0</strong></div>
             <div><span style="color:var(--text3)">Armazenamento</span><br><strong id="sobre-armazenamento">localStorage</strong></div>
             <div><span style="color:var(--text3)">Cotações</span><br><strong>Yahoo Finance · BVMF</strong></div>
             <div><span style="color:var(--text3)">Leitura de notas</span><br><strong>PDF.js 3.11</strong></div>
@@ -2517,6 +2598,7 @@ body[data-aba="entrada"] .fab{display:none!important}
       </div>
     </div>
     <div class="nota-info">Selecione até <strong>30 PDFs</strong> de uma vez (Clear, XP, Rico, BTG…). Cada nota é processada individualmente — notas já importadas são ignoradas automaticamente.</div>
+    <div class="faixa-plano" id="nota-plano-faixa" style="display:none"></div>
     <div style="display:flex;gap:10px;align-items:center;flex-wrap:wrap">
       <button class="btn btn-blue" onclick="document.getElementById('file-nota').click()">📎 Selecionar PDFs das notas</button>
       <span id="nota-file-name" style="font-size:12px;color:var(--text3)">Nenhum arquivo selecionado</span>
@@ -2555,6 +2637,17 @@ body[data-aba="entrada"] .fab{display:none!important}
       <p style="font-size:13px;color:var(--text2);margin-bottom:10px">Selecione o ativo para excluir:</p>
       <div class="del-ativo-grid" id="del-ativo-grid" style="max-height:340px;overflow-y:auto"></div>
     </div>
+  </div>
+</div>
+
+<!-- MODAL: Planos (botões "Fazer upgrade", abas dos planos pagos e limite de notas do plano gratuito) -->
+<div id="modal-planos" class="modal-overlay" style="z-index:9850" onclick="if(event.target===this)fecharPlanos()">
+  <div class="modal-box" onclick="event.stopPropagation()" style="max-width:760px" role="dialog" aria-modal="true" aria-labelledby="planos-titulo">
+    <div style="display:flex;justify-content:space-between;align-items:center;gap:12px">
+      <div class="modal-title" id="planos-titulo">Faça upgrade do seu plano</div>
+      <button class="btn btn-ghost btn-sm" onclick="fecharPlanos()" aria-label="Fechar">✕</button>
+    </div>
+    <div class="modal-body" id="planos-corpo" style="min-height:0"></div>
   </div>
 </div>
 
@@ -2675,6 +2768,8 @@ const WIX_SYNC_KEYS = new Set([
   'carteira_settings_v1',     // configurações da plataforma
   'orphan_ignored_v1',        // ativos marcados como ignorados
   'ticker_rename_cache_v1',   // mapeamento de renomes de tickers
+  // ── Plano gratuito ────────────────────────────────────────────
+  'carteira_plano_uso_v1',    // notas importadas no mês (a contagem vale em qualquer computador)
 ]);
 // ── Chaves NÃO sincronizadas (cache local, recriado automaticamente) ──
 // rent_indices_v1, prov_cache_v1, ticker_banner_cache_v1, tour_visto_v1
@@ -2709,7 +2804,7 @@ const WIX_RESPOSTA_MAX_MS = (window.__imTeste && window.__imTeste.respostaMs) ||
 const WIX_ESPERAS   = (window.__imTeste && window.__imTeste.esperas) || [3000, 8000, 20000, 45000, 60000];   // espera entre tentativas depois de uma falha (a última repete)
 
 // Versão da plataforma (aparece em Minha conta → Sobre e no relatório de salvamento: ajuda a saber qual versão o cliente está usando)
-const APP_VERSAO = '2.2.1 · 16/10/2026';
+const APP_VERSAO = '2.3.0 · 27/10/2026';
 
 // O que o indicador do topo mostra quando se clica nele (Diagnóstico da nuvem)
 const _wixDiag = { ultimoOk: 0, erro: null, falhas: 0, envios: 0, erroCarga: '', cargaProblemas: [], nuvem: {}, ultimoResumo: null };
@@ -3015,6 +3110,13 @@ window.addEventListener('message', (event) => {
     wixBootApp();
     if(Object.keys(_wixSegurados).length && typeof atualizarSyncPill === 'function') atualizarSyncPill('pausado');
     if(Object.keys(_wixSaveQueue).length) wixFlushSave();   // algo guardado enquanto a nuvem não respondia (ex.: o caso do "mantive o local")
+    pedirPlano();   // qual é o plano do membro (o código da página antigo não responde: aí nada é limitado)
+  }
+
+  // Plano do membro (resposta a WIX_PLANO_PEDIR) — ver PLANOS
+  if(msg.tipo === 'WIX_PLANO') {
+    definirPlano(msg.plano);
+    return;
   }
 
   if(msg.tipo === 'WIX_SALVO_OK') {
@@ -3066,6 +3168,251 @@ function wixSair(){
 function wixNavegarConta(destino){
   if(!WIX_MODE){ toast('Disponível apenas dentro do Wix.', 'warn'); return; }
   try { (window.top||window.parent).postMessage({ tipo: 'WIX_NAVEGAR_CONTA', destino }, '*'); } catch(e){}
+}
+
+// ══════════════════════════════════════════════════════════════════
+// PLANOS — gratuito × pagos (Pro, Invest e Mensal)
+// O plano vem do código da página do Wix: o app pede (WIX_PLANO_PEDIR) e recebe { tipo:'WIX_PLANO', plano:{ tipo, nome, fim } },
+// com tipo 'gratis' | 'pro' | 'invest' | 'mensal' | 'pago' (plano pago que o backend não soube classificar) | 'desconhecido'.
+// Plano gratuito (pedido do dono do site em 27/10/2026):
+//   • até LIMITE_NOTAS_GRATIS notas de corretagem importadas por mês — conta cada nota (um PDF pode ter várias), pela data
+//     em que foi importada; importar de novo a mesma nota no mesmo mês não conta outra vez; recomeça no dia 1º;
+//   • sem as abas Imposto de Renda, Simulador AFEC e Painel (ABAS_PAGAS): elas mostram o que o plano pago libera.
+// Sem a informação (fora do Wix, código da página antigo, Planos de Preços sem resposta) ou com os dados de exemplo na tela,
+// NADA é limitado: quem paga nunca fica travado por uma falha nossa. Nada é apagado no gratuito: o que já estava lançado
+// (inclusive metas do simulador e DARFs) continua guardado e volta ao assinar.
+// ══════════════════════════════════════════════════════════════════
+const URL_IMPORT_FINANCES = 'https://www.importmoney.com/import-finances';
+const LIMITE_NOTAS_GRATIS = 4;
+const ABAS_PAGAS = ['ir', 'simulador', 'painel'];
+const PLANO_USO_KEY = 'carteira_plano_uso_v1';   // { v:1, notas:{ 'AAAA-MM': [chave da nota, …] } } — só o mês atual
+// Os valores que o dono do site definiu (27/10/2026) e o checkout de cada plano no Planos de Preços do Wix
+// (planId + pricingVariantId: conferido na página publicada que cada link abre o plano e o preço certos)
+const _CHECKOUT_IM = 'https://www.importmoney.com/pricing-plans/personaliza-o-do-plano?planId=';
+const PLANOS_IM = [
+  { id:'pro',    nome:'Plano Pro',    preco:'12x de R$ 34,90', total:'R$ 418,80 por 12 meses', inclui:'Tudo do Import Money <b>e</b> a plataforma Import Finances (controle financeiro pessoal)', destaque:'Mais completo',
+    link: _CHECKOUT_IM + '9dc51bd5-6e8d-465e-8f4b-3735483caf09&pricingVariantId=13bce8d9-d1b0-4a58-9248-8fd9454f8b18' },
+  { id:'invest', nome:'Plano Invest', preco:'12x de R$ 24,90', total:'R$ 298,80 por 12 meses', inclui:'Tudo do Import Money (não inclui o Import Finances)',
+    link: _CHECKOUT_IM + '5f9bc6d3-b85b-48c5-ad7d-16695d9a479c&pricingVariantId=60f70ac0-d6d7-465e-a3c8-cf8307ef00d6' },
+  { id:'mensal', nome:'Plano Mensal', preco:'R$ 39,90', sufixo:'/mês', total:'mês a mês', inclui:'Tudo do Import Money (não inclui o Import Finances)',
+    link: _CHECKOUT_IM + '43f0c33f-df42-4f0a-8e26-fc7be14e59d7&pricingVariantId=cc784867-9c74-46d2-a61b-792e6251d7b9' },
+];
+const PLANO = { tipo:'desconhecido', nome:'', fim:null, conferidoEm:0 };
+let _planoAbriuCheckout = false;   // abriu a página de assinatura em outra aba: ao voltar, confere de novo
+
+const _MESES_PLANO = ['janeiro','fevereiro','março','abril','maio','junho','julho','agosto','setembro','outubro','novembro','dezembro'];
+const _icP = (n) => '<svg class="i"><use href="#i-' + n + '"/></svg>';
+const _escP = (s) => String(s == null ? '' : s).replace(/[&<>"']/g, (c) => ({ '&':'&amp;', '<':'&lt;', '>':'&gt;', '"':'&quot;', "'":'&#39;' }[c]));
+
+/** Plano gratuito de verdade (dentro do Wix, plano conhecido, sem os dados de exemplo na tela). */
+function planoGratis(){ return WIX_MODE && PLANO.tipo === 'gratis' && !window.__modoDemoAtivo; }
+function abaBloqueadaPlano(id){ return planoGratis() && ABAS_PAGAS.includes(id); }
+function nomeDoPlano(){
+  if(PLANO.nome) return PLANO.nome;
+  const p = PLANOS_IM.find((x) => x.id === PLANO.tipo);
+  return p ? p.nome : 'Plano pago';
+}
+
+function pedirPlano(){
+  if(!WIX_MODE) return;
+  try { (window.top||window.parent).postMessage({ tipo: 'WIX_PLANO_PEDIR' }, '*'); } catch(e){}
+}
+/** Guarda o plano que veio do Wix e ajusta a tela (botões, cadeados, aba aberta). */
+function definirPlano(p){
+  const antes = PLANO.tipo;
+  const tipo = p && ['gratis','pro','invest','mensal','pago'].includes(p.tipo) ? p.tipo : 'desconhecido';
+  PLANO.tipo = tipo;
+  PLANO.nome = tipo !== 'gratis' && tipo !== 'desconhecido' ? String((p && p.nome) || '').slice(0, 60) : '';
+  PLANO.fim = p && /^\d{4}-\d{2}-\d{2}$/.test(String(p.fim || '')) ? p.fim : null;
+  PLANO.conferidoEm = Date.now();
+  aplicarPlanoNaTela();
+  if(antes === 'gratis' && tipo !== 'gratis' && tipo !== 'desconhecido'){
+    fecharPlanos();
+    toast('Assinatura confirmada: tudo liberado. Obrigado!', 'success', 6000);
+  }
+}
+function aplicarPlanoNaTela(){
+  document.body.classList.toggle('plano-gratis', planoGratis());
+  // A aba aberta pode ter mudado de situação: o plano chegou com uma aba paga aberta, ou a assinatura passou a valer
+  const aba = document.body.dataset.aba;
+  if(aba && ABAS_PAGAS.includes(aba) && typeof switchTab === 'function') switchTab(aba);
+  if(aba === 'conta') renderCartaoPlano();
+  if(document.getElementById('modal-nota')?.classList.contains('open')) atualizarFaixaNotas();
+}
+/** Botão "Já assinei": pergunta de novo ao Wix e diz o resultado. */
+async function conferirPlano(btn){
+  if(!WIX_MODE){ toast('Abra a plataforma pelo site importmoney.com para conferir a sua assinatura.', 'warn'); return; }
+  if(btn) btn.disabled = true;
+  try {
+    const antes = PLANO.conferidoEm, tipoAntes = PLANO.tipo;
+    pedirPlano();
+    const respondeu = await new Promise((res) => {
+      const t0 = Date.now();
+      const iv = setInterval(() => { if(PLANO.conferidoEm !== antes){ clearInterval(iv); res(true); } else if(Date.now() - t0 > 10000){ clearInterval(iv); res(false); } }, 200);
+    });
+    if(!respondeu) toast('Não consegui conferir agora. Tente de novo em instantes.', 'error', 5000);
+    else if(PLANO.tipo === 'gratis') toast('Ainda não encontrei a assinatura. Se você acabou de assinar, espere um minuto e tente de novo.', 'warn', 6500);
+    else if(PLANO.tipo !== 'desconhecido' && tipoAntes !== 'gratis') toast('Seu plano: ' + nomeDoPlano() + '. Tudo liberado.', 'success');   // (do gratuito para o pago, definirPlano já avisou)
+  } finally { if(btn) btn.disabled = false; }
+}
+// Voltou da aba da assinatura: confere o plano sozinho
+document.addEventListener('visibilitychange', () => {
+  if(document.visibilityState === 'visible' && _planoAbriuCheckout && PLANO.tipo === 'gratis') pedirPlano();
+});
+
+/* ── Contagem das notas importadas no mês (plano gratuito) ── */
+function _mesAtualPlano(){ return hojeISO().slice(0, 7); }
+function _lerUsoPlano(){
+  try {
+    const u = JSON.parse(localStorage.getItem(PLANO_USO_KEY) || '{}');
+    if(u && typeof u === 'object' && u.notas && typeof u.notas === 'object') return u;
+  } catch(e){}
+  return { v: 1, notas: {} };
+}
+function _notasDoMes(ym){ const l = _lerUsoPlano().notas[ym || _mesAtualPlano()]; return Array.isArray(l) ? l : []; }
+/** A mesma nota tem a mesma chave: corretora + número (sem número, a data do pregão). */
+function chaveNotaPlano(op){
+  const nr = String((op && op.nota) || '').trim();
+  return String((op && op.corretora) || '').trim().toUpperCase() + '|' + (nr || ('sem-numero:' + String((op && op.data) || '').slice(0, 10)));
+}
+function usoNotas(){
+  const ym = _mesAtualPlano();
+  const usadas = _notasDoMes(ym).length;
+  const [a, m] = ym.split('-').map(Number);
+  const prox = m === 12 ? (a + 1) + '-01' : a + '-' + String(m + 1).padStart(2, '0');
+  return { ym, usadas, limite: LIMITE_NOTAS_GRATIS, restam: Math.max(0, LIMITE_NOTAS_GRATIS - usadas), mes: _MESES_PLANO[m - 1], renovaEm: '01/' + prox.slice(5, 7) + '/' + prox.slice(0, 4) };
+}
+function registrarNotasImportadas(chaves){
+  const ym = _mesAtualPlano();
+  const lista = new Set(_notasDoMes(ym));
+  chaves.forEach((k) => lista.add(k));
+  try { localStorage.setItem(PLANO_USO_KEY, JSON.stringify({ v: 1, notas: { [ym]: [...lista] } })); } catch(e){}
+}
+/** Plano gratuito: as notas selecionadas cabem no que resta do mês? Se não, abre a janela dos planos e devolve false. */
+function notasCabemNoPlano(selecionadas){
+  if(!planoGratis()) return true;
+  const u = usoNotas();
+  const ja = new Set(_notasDoMes(u.ym));
+  const novas = [...new Set(selecionadas.map(chaveNotaPlano))].filter((k) => !ja.has(k));
+  if(novas.length <= u.restam) return true;
+  abrirPlanos('notas', { selecionadas: novas.length });
+  return false;
+}
+
+/* ── Pedaços de tela ── */
+function htmlBarraNotas(u){
+  const pct = Math.min(100, Math.round(u.usadas / u.limite * 100)), cheio = u.restam === 0;
+  return `<div class="uso${cheio ? ' cheio' : ''}">
+    <div class="uso-l"><span>Notas de corretagem importadas em ${u.mes}</span><b>${Math.min(u.usadas, u.limite)} de ${u.limite}</b></div>
+    <div class="uso-bar" role="progressbar" aria-label="Notas importadas em ${u.mes}: ${u.usadas} de ${u.limite}" aria-valuemin="0" aria-valuemax="${u.limite}" aria-valuenow="${Math.min(u.usadas, u.limite)}"><i style="width:${pct}%"></i></div>
+    <span class="uso-hint">A contagem recomeça em ${u.renovaEm}.</span>
+  </div>`;
+}
+function htmlCardsPlanos(){
+  return `<div class="planos-venda">${PLANOS_IM.map((p) => `<div class="pv${p.destaque ? ' pv-destaque' : ''}" data-plano="${p.id}">
+      ${p.destaque ? `<span class="pv-chip">${p.destaque}</span>` : ''}<b class="pv-nome">${p.nome}</b>
+      <span class="pv-preco">${p.preco}${p.sufixo ? `<small>${p.sufixo}</small>` : ''}</span><span class="pv-total">${p.total}</span>
+      <span class="pv-inclui">${p.inclui}</span>
+      <a class="btn btn-sm ${p.destaque ? 'btn-primary' : ''} pv-assinar" href="${p.link}" target="_blank" rel="noopener" onclick="_planoAbriuCheckout=true">${_icP('crown')} Assinar o ${p.nome}</a></div>`).join('')}</div>`;
+}
+function htmlAcoesPlanos(){
+  return `<div class="planos-acoes">
+      <button class="btn btn-ghost" onclick="conferirPlano(this)">${_icP('refresh')} Já assinei</button>
+      <span class="planos-hint">O checkout abre em outra aba. Depois de assinar, volte para esta aba: o que estava bloqueado é liberado sozinho, sem perder nada do que você já lançou.</span>
+    </div>`;
+}
+function htmlTabelaPlanos(){
+  const lin = (rot, gratis, pago, gSim) => `<tr><th scope="row">${rot}</th><td class="${gSim ? 'sim' : 'nao'}">${gratis}</td><td class="sim">${pago}</td></tr>`;
+  return `<table class="cmp-planos"><caption>O que muda com um plano pago</caption>
+    <thead><tr><th scope="col"></th><th scope="col">Gratuito</th><th scope="col">Planos pagos</th></tr></thead>
+    <tbody>
+      ${lin('Importar notas de corretagem (PDF)', `até ${LIMITE_NOTAS_GRATIS} por mês`, 'sem limite', true)}
+      ${lin('Imposto de Renda (relatório anual e DARF)', 'não incluído', 'incluído')}
+      ${lin('Simulador AFEC', 'não incluído', 'incluído')}
+      ${lin('Painel de metas', 'não incluído', 'incluído')}
+      ${lin('Carteira, posições, histórico, proventos, cotações, Painel Global e comparação', 'liberado', 'liberado', true)}
+      ${lin('Import Finances (controle financeiro pessoal)', 'não incluído', 'só no Plano Pro')}
+    </tbody></table>`;
+}
+
+/* ── Janela dos planos ── */
+const MOTIVOS_PLANO = {
+  notas: (u, extra) => ({
+    titulo: 'Limite de notas do plano gratuito',
+    texto: extra && extra.selecionadas
+      ? `Você selecionou <b>${extra.selecionadas} nota${extra.selecionadas > 1 ? 's' : ''} nova${extra.selecionadas > 1 ? 's' : ''}</b>, mas o plano gratuito importa até <b>${u.limite} notas por mês</b> e ${u.restam ? `restam <b>${u.restam}</b> em ${u.mes}` : `as de ${u.mes} já foram usadas`}. ${u.restam ? 'Desmarque algumas operações na lista para ficar dentro do limite, ou' : 'A contagem recomeça em ' + u.renovaEm + '. Você pode registrar as operações digitando, ou'} faça upgrade para importar sem limite.`
+      : `No plano gratuito dá para importar até <b>${u.limite} notas de corretagem por mês</b>, e as de ${u.mes} já foram usadas. A contagem recomeça em ${u.renovaEm}; até lá, você pode registrar as operações digitando. Com um plano pago, importe quantas notas quiser.`,
+  }),
+  ir:        () => ({ titulo: 'Imposto de Renda é dos planos pagos', texto: 'O relatório anual para a declaração e o cálculo do imposto mês a mês fazem parte dos planos pagos. Suas operações continuam guardadas: ao assinar, o relatório sai com tudo o que você já lançou.' }),
+  simulador: () => ({ titulo: 'Simulador AFEC é dos planos pagos', texto: 'Com um plano pago, você monta a carteira que quer ter e acompanha quanto falta para chegar lá.' }),
+  painel:    () => ({ titulo: 'Painel de metas é dos planos pagos', texto: 'Com um plano pago, o Painel acompanha as metas do Simulador AFEC com cotações ao vivo.' }),
+};
+function abrirPlanos(motivo, extra){
+  const u = usoNotas(), m = MOTIVOS_PLANO[motivo] ? MOTIVOS_PLANO[motivo](u, extra) : null;
+  document.getElementById('planos-titulo').textContent = m ? m.titulo : 'Faça upgrade do seu plano';
+  document.getElementById('planos-corpo').innerHTML = `<div class="planos-stack" id="planos-venda" data-motivo="${_escP(motivo || '')}">
+      <p>${m ? m.texto : (planoGratis() ? 'Você está no <b>plano gratuito</b>. Um plano pago libera tudo: notas sem limite, Imposto de Renda, Simulador AFEC e Painel.' : 'Conheça os planos do Import Money.')}</p>
+      ${planoGratis() ? htmlBarraNotas(u) : ''}
+      ${htmlTabelaPlanos()}
+      ${htmlCardsPlanos()}
+      ${htmlAcoesPlanos()}
+    </div>`;
+  document.getElementById('modal-planos').classList.add('open');
+}
+function fecharPlanos(){ document.getElementById('modal-planos')?.classList.remove('open'); }
+
+/* ── Abas dos planos pagos no plano gratuito ── */
+const ABAS_PAGAS_INFO = {
+  ir: { icone: 'receipt', titulo: 'Imposto de Renda', texto: 'O relatório para a declaração e o imposto mês a mês fazem parte dos planos pagos.',
+        itens: ['Relatório anual pronto para a declaração: bens e direitos e rendimentos, com o CNPJ de cada ativo e da corretora', 'Cálculo do imposto sobre as vendas mês a mês e o DARF a pagar', 'Tudo a partir das operações que você já lançou: nada a digitar de novo'] },
+  simulador: { icone: 'target', titulo: 'Simulador AFEC', texto: 'Planeje a carteira que você quer ter, sem mexer na sua carteira real.',
+        itens: ['Monte a carteira ideal por categorias, com os ativos e os valores de cada um', 'Veja quanto falta comprar de cada ativo para chegar à meta', 'As metas alimentam o Painel e a comparação com a carteira real'] },
+  painel: { icone: 'monitor', titulo: 'Painel', texto: 'Acompanhe as metas do Simulador AFEC com cotações ao vivo.',
+        itens: ['Cada ativo da meta com o preço do momento, comparado ao seu preço médio', 'Progresso por categoria e a quantidade que ainda falta de cada ativo', 'Atualização automática das cotações'] },
+};
+function renderAbaBloqueada(id){
+  const info = ABAS_PAGAS_INFO[id], el = document.getElementById('panel-bloqueado');
+  if(!info || !el) return;
+  el.dataset.aba = id;
+  el.innerHTML = `<div class="bloq-wrap"><div class="card planos-stack">
+      <div class="bloq-head"><div class="bloq-ic">${_icP(info.icone)}</div><div><h2>${info.titulo}: disponível nos planos pagos</h2><p>${info.texto}</p></div></div>
+      <ul class="bloq-lista">${info.itens.map((t) => `<li>${_icP('check')}<span>${t}</span></li>`).join('')}</ul>
+      ${htmlCardsPlanos()}
+      ${htmlAcoesPlanos()}
+    </div></div>`;
+}
+
+/* ── Faixa do plano gratuito na janela de importar notas ── */
+function atualizarFaixaNotas(){
+  const el = document.getElementById('nota-plano-faixa');
+  if(!el) return;
+  if(!planoGratis()){ el.style.display = 'none'; el.innerHTML = ''; return; }
+  const u = usoNotas(), cheio = u.restam === 0;
+  el.className = 'faixa-plano' + (cheio ? ' cheio' : '');
+  el.innerHTML = `${_icP(cheio ? 'lock' : 'info')}<span class="grow">${cheio
+      ? `Você já importou as <b>${u.limite} notas de ${u.mes}</b> do plano gratuito. A contagem recomeça em ${u.renovaEm}.`
+      : `Plano gratuito: <b>${u.usadas} de ${u.limite} notas</b> importadas em ${u.mes}. Restam <b>${u.restam}</b>.`}</span>
+    <button class="btn btn-sm btn-primary" onclick="abrirPlanos('notas')">${_icP('crown')} Fazer upgrade</button>`;
+  el.style.display = '';
+}
+
+/* ── Cartão "Seu plano" (Minha conta) ── */
+function renderCartaoPlano(){
+  const el = document.getElementById('conta-plano-card');
+  if(!el) return;
+  if(!WIX_MODE || PLANO.tipo === 'desconhecido' || window.__modoDemoAtivo){ el.style.display = 'none'; el.innerHTML = ''; return; }
+  el.style.display = '';
+  if(PLANO.tipo !== 'gratis'){
+    const fim = PLANO.fim ? ` · vale até ${PLANO.fim.slice(8, 10)}/${PLANO.fim.slice(5, 7)}/${PLANO.fim.slice(0, 4)}` : '';
+    el.innerHTML = `<div class="acct-card-title">Seu plano</div>
+      <div class="faixa-plano">${_icP('check')}<span class="grow"><b>${_escP(nomeDoPlano())}</b> ativo${fim}. Tudo liberado, sem limite de notas.</span></div>
+      ${PLANO.tipo === 'pro' ? `<div class="planos-acoes"><a class="btn btn-sm" href="${URL_IMPORT_FINANCES}" target="_top">${_icP('wallet')} Abrir o Import Finances (incluído no seu plano)</a></div>` : ''}`;
+    return;
+  }
+  el.innerHTML = `<div class="acct-card-title">Seu plano: gratuito</div>
+    ${htmlBarraNotas(usoNotas())}
+    <p class="planos-hint" style="margin-top:10px">Imposto de Renda, Simulador AFEC e Painel são dos planos pagos. Carteira, posições, histórico, proventos, cotações, Painel Global e comparação de carteiras ficam liberados.</p>
+    <div class="planos-acoes"><button class="btn btn-primary" onclick="abrirPlanos()">${_icP('crown')} Fazer upgrade</button><button class="btn btn-ghost" onclick="conferirPlano(this)">${_icP('refresh')} Já assinei</button></div>`;
 }
 
 // Função chamada quando os dados estão prontos para usar
@@ -3373,7 +3720,6 @@ function atualizarAbaAtiva(){
   else if(ativo==='global')           iniciarPainelGlobal();
   else if(ativo==='conta')            renderConta();
   else if(ativo==='proventos')        renderProventos();
-  else if(ativo==='gastos')           renderGastos();
 }
 
 function undoAction(){
@@ -3486,10 +3832,12 @@ function toast(msg,type='success',duration=3200){
   _toastTimer=setTimeout(()=>el.style.display='none',duration);
 }
 
-const TABS={painel:['Painel','Acompanhe as metas do Simulador AFEC com cotações ao vivo'],global:['Painel Global','Cotações ao vivo, rankings, moedas e índices'],dashboard:['Dashboard','Visão geral da sua carteira'],cotacoes:['Cotações','Preço atual de cada ativo da carteira'],entrada:['Registrar operação','Compra, venda, proventos e eventos — digitando os dados'],posicoes:['Posições abertas','O que você tem hoje, com preço médio e resultado'],historico:['Histórico de operações','Todas as movimentações registradas'],notas:['Notas importadas','Gerencie as notas de corretagem — remover uma nota apaga as operações dela'],proventos:['Proventos','Dividendos e JCP recebidos e a receber'],simulador:['Simulador AFEC','Planejamento isolado — não mexe na sua carteira real'],comparacao:['Comparar carteiras','Carteira real vs. metas do Simulador AFEC — o que falta para chegar lá'],gastos:['Controle de gastos','Despesas, recebimentos e independência financeira'],conta:['Minha conta','Perfil, aparência e preferências'],ir:['Imposto de Renda','Relatório anual e DARF para a declaração']};
+const TABS={painel:['Painel','Acompanhe as metas do Simulador AFEC com cotações ao vivo'],global:['Painel Global','Cotações ao vivo, rankings, moedas e índices'],dashboard:['Dashboard','Visão geral da sua carteira'],cotacoes:['Cotações','Preço atual de cada ativo da carteira'],entrada:['Registrar operação','Compra, venda, proventos e eventos — digitando os dados'],posicoes:['Posições abertas','O que você tem hoje, com preço médio e resultado'],historico:['Histórico de operações','Todas as movimentações registradas'],notas:['Notas importadas','Gerencie as notas de corretagem — remover uma nota apaga as operações dela'],proventos:['Proventos','Dividendos e JCP recebidos e a receber'],simulador:['Simulador AFEC','Planejamento isolado — não mexe na sua carteira real'],comparacao:['Comparar carteiras','Carteira real vs. metas do Simulador AFEC — o que falta para chegar lá'],conta:['Minha conta','Perfil, aparência e preferências'],ir:['Imposto de Renda','Relatório anual e DARF para a declaração']};
 function switchTab(id){
   // Aba desconhecida ou sem painel (ex.: Fundamentos, ainda em construção) volta ao Dashboard
   if(!TABS[id] || !document.getElementById('panel-'+id)) id='dashboard';
+  // Plano gratuito: Imposto de Renda, Simulador AFEC e Painel mostram o que o plano pago libera (ver PLANOS)
+  const bloqueada = abaBloqueadaPlano(id);
   // Destaque do menu pelo data-tab (antes era por posição na lista, que o menu do celular — que vinha
   // antes no HTML — desalinhava: o menu lateral nunca mostrava a aba aberta)
   document.querySelectorAll('.nav-item[data-tab]').forEach(el=>{
@@ -3498,11 +3846,12 @@ function switchTab(id){
     if(on) el.setAttribute('aria-current','page'); else el.removeAttribute('aria-current');
   });
   document.querySelectorAll('.panel').forEach(p=>p.classList.remove('active'));
-  document.getElementById('panel-'+id).classList.add('active');
+  document.getElementById(bloqueada ? 'panel-bloqueado' : 'panel-'+id).classList.add('active');
   document.body.dataset.aba = id;   // o CSS esconde o botão "+" do celular na própria tela de Registrar operação
-  const[t,s]=TABS[id];document.getElementById('topbar-title').textContent=t;document.getElementById('topbar-sub').textContent=s;
+  const[t,s]=TABS[id];document.getElementById('topbar-title').textContent=t;document.getElementById('topbar-sub').textContent=bloqueada?'Disponível nos planos pagos':s;
   const mainScroll=document.getElementById('main-content'); if(mainScroll) mainScroll.scrollTop=0;
   if(typeof updateMobileNav==='function') updateMobileNav(id);   // barra de abas e título do celular
+  if(bloqueada){ pararPainelGlobal(); renderAbaBloqueada(id); return; }
   if(id==='global'){
     iniciarPainelGlobal();
   } else {
@@ -3520,7 +3869,6 @@ function switchTab(id){
   if(id==='conta'){ renderConta(); checkTourAba('conta'); }
   if(id==='ir'){ renderIR(); switchIRTab('relatorio'); checkTourAba('ir'); }
   if(id==='comparacao'){ renderComparacao(); checkTourAba('comparacao'); }
-  if(id==='gastos'){ renderGastos(); checkTourAba('gastos'); }
 }
 
 // Retorna a data da primeira compra de cada ticker
@@ -4117,6 +4465,7 @@ function carregarExemplo(){
   window.__modoDemoAtivo = true; _modoDemo = true;
   ops = _opsDeExemplo();
   atualizarFaixaExemplo();
+  try{ aplicarPlanoNaTela(); }catch(e){}   // com os dados de exemplo nada é limitado (nem no plano gratuito)
   const cont = document.getElementById('ops-count'); if(cont) cont.textContent = ops.length+' operações de exemplo (não salvas)';
   renderDashboard();
   toast('Dados de exemplo carregados. Nada disso é seu — "Limpar" começa com os seus dados.','info');
@@ -4127,6 +4476,7 @@ function sairDoModoExemplo(avisar){
   ops = ops.filter(o => !o._demo);
   cotacoes = {};
   atualizarFaixaExemplo();
+  try{ aplicarPlanoNaTela(); }catch(e){}   // o plano gratuito volta a valer
   if(avisar) toast('Os dados de exemplo saíram: a carteira agora tem só o que você lançou.','info');
 }
 function limparExemplo(){
@@ -4784,6 +5134,8 @@ function toggleNotaExpand(){
 }
 
 function abrirModalNota(){
+  // Plano gratuito sem notas sobrando no mês: mostra os planos em vez da janela de importar
+  if(planoGratis() && usoNotas().restam === 0){ abrirPlanos('notas'); return; }
   // Reset modal ao abrir
   notaPendente=[];
   document.getElementById('nota-file-name').textContent='Nenhum arquivo selecionado';
@@ -4791,6 +5143,7 @@ function abrirModalNota(){
   document.getElementById('nota-preview-area').innerHTML='<div class="empty" style="padding:20px"><div class="empty-icon">📋</div>Os negócios extraídos aparecerão aqui para revisão.</div>';
   document.getElementById('btn-confirmar-nota').style.display='none';
   document.getElementById('nota-resumo-footer').textContent='';
+  atualizarFaixaNotas();   // plano gratuito: quantas notas do mês já foram usadas
   document.getElementById('modal-nota').classList.add('open');
 }
 
@@ -4843,6 +5196,8 @@ function limiteNotasAcao(acao){
 async function processNota(event){
   const todosFiles=[...event.target.files];
   if(!todosFiles.length) return;
+  // Plano gratuito sem notas sobrando no mês (o arquivo pode ter sido escolhido por outro caminho que não a janela)
+  if(planoGratis() && usoNotas().restam === 0){ event.target.value=''; abrirPlanos('notas'); return; }
 
   if(todosFiles.length > 30){
     _notasFilesBuffer = todosFiles;
@@ -6600,6 +6955,8 @@ function renderPreviewNota(data,nota,corretora,negocios){
 function confirmarNota(){
   const sel=notaPendente.filter(n=>n._sel);
   if(!sel.length){toast('Selecione ao menos uma operação.','warn');return;}
+  // Plano gratuito: no máximo LIMITE_NOTAS_GRATIS notas por mês (se passar, abre os planos e nada é importado)
+  if(!notasCabemNoPlano(sel)) return;
 
   // ── Possível bonificação (título com "DR1"/"DRI") ─────────────────
   // A corretora às vezes liquida automaticamente uma bonificação recebida,
@@ -6681,6 +7038,7 @@ function confirmarNota(){
   verificarRenomesAposImportacao(novasOps); // corrigir tickers antes de salvar
   novasOps.forEach(op=>ops.push(op));
   registrarVendasPendentesComoRecebimentos(novasOps);
+  if(planoGratis()) registrarNotasImportadas([...new Set(sel.map(chaveNotaPlano))]);   // conta as notas do mês
   save();fecharModalNota();renderDashboard();atualizarAbaAtiva();
   const totalFolhas = Object.values(folhasPorNota).reduce((s,f)=>s+f,0);
   const folhasLabel = totalFolhas > notas.length ? ` · ${totalFolhas} folhas` : '';
@@ -7787,27 +8145,16 @@ function simAtualizarAuto(){
   let patrimonio = 0;
   Object.values(pos).forEach(p => { if(p.qtd > 0 && !optTkAuto.has(p.ticker)) patrimonio += resumoAtivo(p).valorMercado; });
 
-  // ── 2. Saldo do mês do Controle de Gastos ────────────────────────
-  let saldoMes = 0;
-  try {
-    const ym = document.getElementById('gastos-mes')?.value || getMesAtual();
-    if(typeof gastosData !== 'undefined' && gastosData && gastosData[ym]){
-      const d = gastosData[ym];
-      const soma = arr => (arr||[]).reduce((s,r)=>s+(+r.valor||0),0);
-      const tR = soma(recebimentosVisiveis(d)), tF = soma(d.fixos),
-            tV = soma(d.variaveis),   tP = soma(d.parcelamentos);
-      saldoMes = Math.max(0, tR - (tF + tV + tP));
-    }
-  } catch(e){}
-
-  const total = patrimonio + saldoMes;
+  // ── 2. (Antes somava o "saldo do mês" do Controle de Gastos. A aba saiu em 27/10/2026 — o controle financeiro agora é o
+  // Import Finances — e um saldo que a pessoa não vê nem corrige não pode mudar a meta: o total é só o patrimônio.)
+  const total = patrimonio;
 
   // Atualizar info panel
   const elPatr  = document.getElementById('sim-auto-patrimonio');
   const elSaldo = document.getElementById('sim-auto-saldo');
   const elTotal = document.getElementById('sim-auto-total');
   if(elPatr)  elPatr.innerHTML  = `📊 Patrimônio: <strong>${fmt(patrimonio)}</strong>`;
-  if(elSaldo) elSaldo.innerHTML = `💰 Saldo do mês: <strong>${fmt(saldoMes)}</strong>`;
+  if(elSaldo) elSaldo.style.display = 'none';
   if(elTotal) elTotal.innerHTML = `Total: <strong>${fmt(total)}</strong>`;
 
   // Atualizar campo e simState
@@ -9826,7 +10173,9 @@ const SETTINGS_DEFAULT = {
   bannerVel: 'lenta'
 };
 // Velocidade da faixa de cotações do topo, em px por segundo (ver renderBanner / ajustarVelocidadeFaixa)
-const BANNER_VEL = { 'muito-lenta': 14, 'lenta': 24, 'normal': 45 };
+// 'parada' = 0: a faixa fica fixa (rolagem lateral manual). Use bannerOpcao(), nunca BANNER_VEL[v] como "existe?" (0 é falso).
+const BANNER_VEL = { 'parada': 0, 'extra-lenta': 7, 'muito-lenta': 14, 'lenta': 24, 'normal': 45 };
+function bannerOpcao(v) { return Object.prototype.hasOwnProperty.call(BANNER_VEL, v) ? v : 'lenta'; }
 
 function getSettings(){ try{ return {...SETTINGS_DEFAULT, ...JSON.parse(localStorage.getItem(SETTINGS_KEY)||'{}')}; }catch(e){ return {...SETTINGS_DEFAULT}; } }
 function salvarSettings(){
@@ -10048,7 +10397,7 @@ function renderConta(){
     if(el) el.checked = val;
   });
   const selVel = document.getElementById('sel-banner-vel');
-  if(selVel) selVel.value = BANNER_VEL[s.bannerVel] ? s.bannerVel : 'lenta';
+  if(selVel) selVel.value = bannerOpcao(s.bannerVel);
   // Sincronizar cards de tema
   const temaAtual = temaDasConfig(s);
   TEMAS.forEach(t => {
@@ -10059,6 +10408,7 @@ function renderConta(){
   // Card "Minha conta (Wix)" só faz sentido rodando dentro do Wix
   const contaWixCard = document.getElementById('conta-wix-card');
   if(contaWixCard) contaWixCard.style.display = WIX_MODE ? '' : 'none';
+  renderCartaoPlano();   // "Seu plano" (gratuito com o uso do mês, ou o plano pago)
   // Onde os dados ficam guardados depende de onde a plataforma foi aberta
   const txtArm = document.getElementById('conta-armazenamento-texto');
   if(txtArm) txtArm.textContent = WIX_MODE
@@ -10944,6 +11294,8 @@ function removerRecebimentoVenda(opId){
 
 function registrarVendaComoRecebimento(op){
   try {
+    // A aba Controle de Gastos saiu (27/10/2026): não cria mais lançamentos que ninguém vê. Os antigos ficam guardados.
+    if(!TABS.gastos) return;
     if(!op || op.tipo !== 'Venda') return;
     if(!getSettings().autoProventos) return; // disjuntor desligado → não cria novo lançamento automático
     const valorLiq = (+op.preco * +op.qtd) - (+op.taxa||0);
@@ -12030,6 +12382,7 @@ const NUVEM_NOMES = {
   carteira_acoes_v4: 'Operações e notas importadas', carteira_titular_v1: 'Perfil (titular)', simulador_afec_v2: 'Simulador AFEC',
   controle_gastos_v1: 'Controle de gastos', gastos_categorias_v1: 'Categorias de gastos', receb_categorias_v1: 'Categorias de receitas',
   darf_historico_v1: 'DARFs pagos', carteira_settings_v1: 'Configurações', orphan_ignored_v1: 'Ativos ignorados', ticker_rename_cache_v1: 'Renomes de tickers',
+  carteira_plano_uso_v1: 'Notas importadas no mês (plano gratuito)',
 };
 let _nuvemTimer = null;
 function _nuvemKB(chars){ return (chars / 1024).toLocaleString('pt-BR', { minimumFractionDigits: 1, maximumFractionDigits: 1 }) + ' KB'; }
@@ -17622,10 +17975,15 @@ function observarFaixaDeCotacoes() {
 // (Antes era "4 s por cotação", ≈ 45 px/s: com vários ativos a faixa passava rápido demais. O padrão agora é
 // lento, ≈ 24 px/s, e dá para mudar em Minha conta → Preferências. Passar o mouse por cima pausa.)
 // (BANNER_VEL fica junto de SETTINGS_DEFAULT)
-function bannerPxPorSeg() { const v = getSettings().bannerVel; return BANNER_VEL[v] || BANNER_VEL.lenta; }
+function bannerPxPorSeg() { return BANNER_VEL[bannerOpcao(getSettings().bannerVel)]; }
 function ajustarVelocidadeFaixa(track) {
   track = track || document.getElementById('ticker-banner-track');
   if (!track) return;
+  // "Parada": a faixa não anda (o CSS da classe tira a animação) e fica rolável de lado
+  const barra = document.getElementById('ticker-banner');
+  const parada = bannerPxPorSeg() === 0;
+  if (barra) { barra.classList.toggle('ticker-parado', parada); if (!parada) barra.scrollLeft = 0; }
+  if (parada) return;
   const conjunto = track.scrollWidth / 2;
   if (!(conjunto > 0)) return;   // faixa escondida (celular) ou vazia
   const seg = Math.max(30, Math.round(conjunto / bannerPxPorSeg()));
@@ -17642,7 +18000,7 @@ function ajustarVelocidadeFaixa(track) {
 }
 function aplicarVelocidadeBanner(valor) {
   const s = getSettings();
-  s.bannerVel = BANNER_VEL[valor] ? valor : 'lenta';
+  s.bannerVel = bannerOpcao(valor);
   try { localStorage.setItem(SETTINGS_KEY, JSON.stringify(s)); } catch (e) {}
   ajustarVelocidadeFaixa();
 }
