@@ -1446,6 +1446,9 @@ a.btn,a.btn:hover{text-decoration:none}
 .pv-preco{font-size:21px;font-weight:800;color:var(--text);letter-spacing:-.01em}
 .pv-preco small{font-size:13px;font-weight:600;color:var(--text2)}
 .pv-total{font-size:12.5px;color:var(--text2)}
+.pv-promo{margin:0;padding:8px 12px;border-radius:10px;border:1px solid rgba(255,210,63,.5);background:rgba(255,210,63,.14);font-size:13px;color:var(--text)}
+.pv-off{display:inline-block;margin-left:7px;padding:1px 7px;border-radius:999px;background:#ffd23f;color:#0b0b0b;font-size:11px;font-weight:800;vertical-align:2px}
+.pv-de{font-size:12px;color:var(--text3);text-decoration:line-through}
 .pv-inclui{font-size:12.5px;color:var(--text2);line-height:1.45;margin-top:4px;flex:1}
 .pv .pv-assinar{margin-top:10px;white-space:normal;text-align:center;line-height:1.25;padding:6px 12px}
 .planos-acoes .planos-hint{flex:1 1 260px}
@@ -2804,7 +2807,7 @@ const WIX_RESPOSTA_MAX_MS = (window.__imTeste && window.__imTeste.respostaMs) ||
 const WIX_ESPERAS   = (window.__imTeste && window.__imTeste.esperas) || [3000, 8000, 20000, 45000, 60000];   // espera entre tentativas depois de uma falha (a última repete)
 
 // Versão da plataforma (aparece em Minha conta → Sobre e no relatório de salvamento: ajuda a saber qual versão o cliente está usando)
-const APP_VERSAO = '2.3.2 · 31/10/2026';
+const APP_VERSAO = '2.3.3 · 31/10/2026';
 
 // O que o indicador do topo mostra quando se clica nele (Diagnóstico da nuvem)
 const _wixDiag = { ultimoOk: 0, erro: null, falhas: 0, envios: 0, erroCarga: '', cargaProblemas: [], nuvem: {}, ultimoResumo: null };
@@ -3197,6 +3200,12 @@ const PLANOS_IM = [
   { id:'mensal', nome:'Plano Mensal', preco:'R$ 39,90', sufixo:'/mês', total:'mês a mês', inclui:'Tudo do Import Money (não inclui o Import Finances)',
     link: _CHECKOUT_IM + '43f0c33f-df42-4f0a-8e26-fc7be14e59d7&pricingVariantId=cc784867-9c74-46d2-a61b-792e6251d7b9' },
 ];
+// Black Friday de lançamento (pedido do dono do site em 31/10/2026: "vai ficar o mês de novembro com esse preço"): os planos do
+// Wix estão com 50% OFF até 30/11/2026. Até `ate`, os cartões mostram o preço com desconto e o normal riscado; depois, voltam
+// sozinhos ao preço normal de PLANOS_IM (no Wix, o dono do site volta o preço dos planos). Outra promoção: troque os valores; null desliga.
+const PROMO_IM = { nome:'Black Friday', desconto:50, ate:'2026-11-30T23:59:59-03:00', fimCurto:'30/11',
+  precos:{ pro:{ preco:'12x de R$ 17,45', total:'R$ 209,40 por 12 meses' }, invest:{ preco:'12x de R$ 12,45', total:'R$ 149,40 por 12 meses' }, mensal:{ preco:'R$ 19,95' } } };
+function promoIM(){ return PROMO_IM && Date.now() <= Date.parse(PROMO_IM.ate) ? PROMO_IM : null; }
 const PLANO = { tipo:'desconhecido', nome:'', fim:null, conferidoEm:0 };
 let _planoAbriuCheckout = false;   // abriu a página de assinatura em outra aba: ao voltar, confere de novo
 
@@ -3309,11 +3318,14 @@ function htmlBarraNotas(u){
   </div>`;
 }
 function htmlCardsPlanos(){
-  return `<div class="planos-venda">${PLANOS_IM.map((p) => `<div class="pv${p.destaque ? ' pv-destaque' : ''}" data-plano="${p.id}">
-      ${p.destaque ? `<span class="pv-chip">${p.destaque}</span>` : ''}<b class="pv-nome">${p.nome}</b>
-      <span class="pv-preco">${p.preco}${p.sufixo ? `<small>${p.sufixo}</small>` : ''}</span><span class="pv-total">${p.total}</span>
+  const promo = promoIM();
+  const faixa = promo ? `<p class="pv-promo"><b>${promo.nome}: ${promo.desconto}% OFF</b> nos planos pagos até ${promo.fimCurto}.</p>` : '';
+  return `${faixa}<div class="planos-venda">${PLANOS_IM.map((p) => { const pr = promo && promo.precos[p.id]; return `<div class="pv${p.destaque ? ' pv-destaque' : ''}" data-plano="${p.id}">
+      ${p.destaque ? `<span class="pv-chip">${p.destaque}</span>` : ''}<b class="pv-nome">${p.nome}${pr ? `<span class="pv-off">−${promo.desconto}%</span>` : ''}</b>
+      ${pr ? `<span class="pv-de">de ${p.preco}${p.sufixo || ''}</span>` : ''}
+      <span class="pv-preco">${pr ? pr.preco : p.preco}${p.sufixo ? `<small>${p.sufixo}</small>` : ''}</span><span class="pv-total">${pr && pr.total ? pr.total : p.total}</span>
       <span class="pv-inclui">${p.inclui}</span>
-      <a class="btn btn-sm ${p.destaque ? 'btn-primary' : ''} pv-assinar" href="${p.link}" target="_blank" rel="noopener" onclick="_planoAbriuCheckout=true">${_icP('crown')} Assinar o ${p.nome}</a></div>`).join('')}</div>`;
+      <a class="btn btn-sm ${p.destaque ? 'btn-primary' : ''} pv-assinar" href="${p.link}" target="_blank" rel="noopener" onclick="_planoAbriuCheckout=true">${_icP('crown')} Assinar o ${p.nome}</a></div>`; }).join('')}</div>`;
 }
 function htmlAcoesPlanos(){
   return `<div class="planos-acoes">
