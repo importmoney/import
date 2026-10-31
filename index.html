@@ -2379,7 +2379,7 @@ a.btn,a.btn:hover{text-decoration:none}
         <div class="acct-card">
           <div class="acct-card-title">Sobre a plataforma</div>
           <div style="display:grid;grid-template-columns:1fr 1fr;gap:12px;font-size:13px">
-            <div><span style="color:var(--text3)">Versão</span><br><strong id="sobre-versao">2.3.1</strong></div>
+            <div><span style="color:var(--text3)">Versão</span><br><strong id="sobre-versao">2.3.2</strong></div>
             <div><span style="color:var(--text3)">Armazenamento</span><br><strong id="sobre-armazenamento">localStorage</strong></div>
             <div><span style="color:var(--text3)">Cotações</span><br><strong>Yahoo Finance · BVMF</strong></div>
             <div><span style="color:var(--text3)">Leitura de notas</span><br><strong>PDF.js 3.11</strong></div>
@@ -2804,7 +2804,7 @@ const WIX_RESPOSTA_MAX_MS = (window.__imTeste && window.__imTeste.respostaMs) ||
 const WIX_ESPERAS   = (window.__imTeste && window.__imTeste.esperas) || [3000, 8000, 20000, 45000, 60000];   // espera entre tentativas depois de uma falha (a última repete)
 
 // Versão da plataforma (aparece em Minha conta → Sobre e no relatório de salvamento: ajuda a saber qual versão o cliente está usando)
-const APP_VERSAO = '2.3.1 · 30/10/2026';
+const APP_VERSAO = '2.3.2 · 31/10/2026';
 
 // O que o indicador do topo mostra quando se clica nele (Diagnóstico da nuvem)
 const _wixDiag = { ultimoOk: 0, erro: null, falhas: 0, envios: 0, erroCarga: '', cargaProblemas: [], nuvem: {}, ultimoResumo: null };
@@ -4005,18 +4005,28 @@ function aplicarOpNaPosicao(pos, op){
       }
     }
     else if(op.tipo==='Opção Call'||op.tipo==='Opção Put'){
-      // Opções vencidas não entram nas posições abertas — apenas no histórico
-      const venc = op._opcao?.vencimento;
-      const hoje = hojeISO();
-      if(venc && venc < hoje) {
-        // Vencida: não acumula posição — apenas registrada no histórico
+      // Posição com sinal, como em computeOpcoes: venda (V, lançador) tira, compra (C, titular) põe.
+      // Antes somava toda quantidade — no Histórico a recompra de uma call lançada aparecia com
+      // posição 2.200 em vez de 0. Quantidade negativa = lançada; totalInvest/pmBase = prêmio (médio)
+      // da parte ainda aberta. A posição vencida é zerada no fim de computePosicoes (o Histórico
+      // mostra a posição de cada linha na data dela, mesmo depois do vencimento).
+      const q = +op.qtd || 0, pr = +op.preco || 0;
+      const lado = String(op._cv||'').toUpperCase() === 'V' ? -1 : 1;
+      if(op._opcao?.vencimento) p._vencOpcao = op._opcao.vencimento;
+      if(p.qtd === 0 || Math.sign(p.qtd) === lado){
+        p.totalInvest += pr * q;
+        p.qtd += lado * q;
+        if(lado > 0) p.custoTotal += pr * q;
       } else {
-        p.qtd+= +op.qtd;
-        const custo = +op.preco* +op.qtd;
-        p.totalInvest += custo;
-        p.custoTotal  += custo;
-        p.pmBase=p.qtd>0?p.totalInvest/p.qtd:0; p.pmAdj=p.pmBase;
+        const fecha = Math.min(q, Math.abs(p.qtd));
+        p.totalInvest = Math.max(0, p.totalInvest - p.pmBase * fecha);
+        p.qtd += lado * fecha;
+        const sobra = q - fecha; // passou do zero: abre no sentido oposto com o prêmio desta operação
+        if(sobra > 0){ p.totalInvest = pr * sobra; p.qtd = lado * sobra; if(lado > 0) p.custoTotal += pr * sobra; }
       }
+      if(p.qtd === 0) p.totalInvest = 0;
+      p.pmBase = p.qtd !== 0 ? p.totalInvest / Math.abs(p.qtd) : 0; p.pmAdj = p.pmBase;
+      p._cv = p.qtd < 0 ? 'V' : p.qtd > 0 ? 'C' : '';
     }
     else if(op.tipo==='Bonificação'){
       // Ações recebidas gratuitamente: aumenta qtd, custo total não muda, PM cai
@@ -4071,6 +4081,11 @@ function aplicarOpNaPosicao(pos, op){
 function computePosicoes(opsList){
   const pos={};
   for(const op of [...(opsList||ops)].sort((a,b)=>new Date(a.data)-new Date(b.data))) aplicarOpNaPosicao(pos, op);
+  // Opção vencida não é posição aberta (virou pó ou foi exercida — o exercício entra como compra/venda do ativo-objeto)
+  const hoje = hojeISO();
+  for(const p of Object.values(pos)){
+    if(p._vencOpcao && p._vencOpcao < hoje && p.qtd !== 0){ p.qtd = 0; p.totalInvest = 0; p.pmBase = 0; p.pmAdj = 0; p._cv = ''; }
+  }
   return pos;
 }
 // Retorna mapa de opções abertas por ticker da opção
@@ -4804,19 +4819,28 @@ function atualizarSetasHistorico(){
     });
   });
 }
+// Opção vendida (V: lançamento ou venda de opção comprada) aparece com quantidade negativa no Histórico,
+// como a posição; o registro continua com quantidade positiva + C/V, igual à nota de corretagem.
+const ehVendaOpcao = o => (o.tipo==='Opção Call'||o.tipo==='Opção Put') && String(o._cv||'').toUpperCase()==='V';
+const qtdHistorico = o => ehVendaOpcao(o) ? -(+o.qtd) : +o.qtd;
+// Líquido: compra (e compra de opção) = dinheiro que sai, com a taxa; venda (e venda de opção) = o que entra, sem a taxa
+function liquidoHistorico(o){
+  const total = +o.preco * +o.qtd, taxa = +o.taxa || 0;
+  if(o.tipo==='Opção Call'||o.tipo==='Opção Put') return ehVendaOpcao(o) ? total-taxa : -(total+taxa);
+  return (o.tipo==='Compra'||o.tipo==='IPO') ? -(total+taxa) : o.tipo==='Venda' ? total-taxa : total;
+}
 // valor da linha na coluna escolhida (null = sem valor: vai para o fim em qualquer direção)
 function valorOrdemHistorico(o, col, pmMap, posMap){
   const ehMarcadorConv = o.tipo === 'Conversão';
-  const total = +o.preco * +o.qtd, taxa = +o.taxa || 0;
+  const total = +o.preco * +o.qtd;
   switch(col){
     case 'data':      return o.data || null;
     case 'tipo':      return o._conversao ? (o.tipo==='Venda' ? 'Conv. ↗' : 'Conv. ↙') : (o.tipo || null);
     case 'ticker':    return (o.ticker||'').toUpperCase() || null;
-    case 'qtd':       return ehMarcadorConv ? null : (+o.qtd);
+    case 'qtd':       return ehMarcadorConv ? null : qtdHistorico(o);
     case 'preco':     return ehMarcadorConv ? null : (+o.preco);
     case 'total':     return ehMarcadorConv ? null : total;
-    case 'liq':       return (ehMarcadorConv || o._conversao) ? null
-                           : ((o.tipo==='Compra'||o.tipo==='IPO') ? -(total+taxa) : o.tipo==='Venda' ? total-taxa : total);
+    case 'liq':       return (ehMarcadorConv || o._conversao) ? null : liquidoHistorico(o);
     case 'pm':        { const v = pmMap[o._id]; return (!ehMarcadorConv && v > 0) ? v : null; }
     case 'pos':       { const v = posMap[o._id]; return (!ehMarcadorConv && v != null) ? v : null; }
     case 'corretora': return (o.corretora||'') || null;
@@ -4906,7 +4930,7 @@ function renderHistorico(pag){
     const total=+o.preco* +o.qtd;const taxa=+o.taxa||0;
     // Compra: custo sai (negativo) incluindo taxa
     // Venda: valor recebido líquido (positivo) descontando taxa
-    let liq=(o.tipo==='Compra'||o.tipo==='IPO')?-(total+taxa):o.tipo==='Venda'?total-taxa:total;
+    const liq=liquidoHistorico(o);
     const bc={Compra:'badge-compra',IPO:'badge-compra',Venda:'badge-venda',Provento:'badge-prov',JCP:'badge-jcp','Opção Call':'badge-prov','Opção Put':'badge-jcp'}[o.tipo]||'badge-prov';
     const tipoLabel = o._conversao ? (o.tipo==='Venda' ? 'Conv. ↗' : 'Conv. ↙') : o.tipo;
     const tickerRaw = (o.ticker||'').toUpperCase();
@@ -4927,7 +4951,7 @@ function renderHistorico(pag){
       <td style="white-space:nowrap">${fmtDate(o.data)}</td>
       <td><span class="badge ${bc}" style="font-size:10px;padding:2px 6px;${o._conversao?'opacity:.75':''}" title="${notaTitle}">${tipoLabel}</span></td>
       <td style="white-space:nowrap"><span class="ticker-chip">${tickerLabel}</span> <button class="btn-event mini" onclick="abrirEventoCorporativo('${tickerRaw}','Conversão')" title="Conversão de ticker — trocar este ativo por outro" aria-label="Conversão de ticker"><svg class="i"><use href="#i-swap"/></svg></button></td>
-      <td class="mono" style="text-align:right">${ehMarcadorConv ? semValor : fmtN(+o.qtd,0)}</td>
+      <td class="mono" style="text-align:right">${ehMarcadorConv ? semValor : fmtN(qtdHistorico(o),0)}</td>
       <td class="mono" style="text-align:right">${ehMarcadorConv ? semValor : fmt(+o.preco)}</td>
       <td class="mono" style="text-align:right">${ehMarcadorConv ? semValor : fmt(total)}</td>
       <td class="mono" style="text-align:right;color:${liq>=0?'var(--green)':'var(--red)'}">${(ehMarcadorConv||o._conversao) ? semValor : fmt(liq)}</td>
@@ -7578,11 +7602,16 @@ function calcRentabilidadeCarteira(dataInicio, dateFim) {
       const vlr = +op.preco * +op.qtd;
       const tax = +op.taxa  || 0;
 
-      // ── Opção Call/Put (compra do contrato = pagamento do prêmio) ──
+      // ── Opção Call/Put: compra (C) paga o prêmio, venda (V: lançamento ou saída) recebe ──
+      // Antes toda operação de opção contava como prêmio pago (lançar uma call reduzia o resultado).
       if (op.tipo === 'Opção Call' || op.tipo === 'Opção Put') {
-        const custo = vlr + tax;
-        custoOpcsTotal += custo;
-        premioLiq      -= custo;  // prêmio pago = custo = resultado negativo até liquidar
+        if (String(op._cv || '').toUpperCase() === 'V') {
+          premioLiq += vlr - tax;
+        } else {
+          const custo = vlr + tax;
+          custoOpcsTotal += custo;
+          premioLiq      -= custo;  // prêmio pago = custo = resultado negativo até liquidar
+        }
         continue;
       }
 
@@ -7782,7 +7811,8 @@ function calcPerformanceMensal(dataInicio) {
       const tax = +op.taxa || 0;
 
       if(op.tipo==='Opção Call'||op.tipo==='Opção Put'){
-        premios  -= vlr + tax;
+        // venda de opção (V) recebe o prêmio; compra (C) paga — antes toda operação contava como paga
+        if(String(op._cv||'').toUpperCase()==='V') premios += vlr - tax; else premios -= vlr + tax;
         continue;
       }
       if(optSerieSet.has(tk) && op.tipo==='Venda'){
