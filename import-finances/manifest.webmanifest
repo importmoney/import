@@ -6,7 +6,7 @@
   "lang": "pt-BR",
   "dir": "ltr",
   "start_url": "https://www.importmoney.com/import-finances",
-  "scope": "https://www.importmoney.com/import-finances",
+  "scope": "https://www.importmoney.com/",
   "display": "standalone",
   "background_color": "#ffffff",
   "theme_color": "#16784f",

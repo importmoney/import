@@ -1467,6 +1467,48 @@ a.btn,a.btn:hover{text-decoration:none}
 .bloq-lista li svg.i{color:var(--green);flex:none;margin-top:3px;width:16px;height:16px}
 #conta-plano-card .planos-acoes{margin-top:12px}
 @media(max-width:768px){.planos-venda{grid-template-columns:1fr}.cmp-planos{font-size:12.5px}.cmp-planos tbody th{font-size:12.5px}.cmp-planos th,.cmp-planos td{padding:7px 5px}.cmp-planos thead th:first-child{width:44%}.bloq-head h2{font-size:18px}.bloq-ic{width:42px;height:42px}}
+/* ── Conta: criar conta / entrar dentro da plataforma (2.4.0). Cobre tudo até o Wix dizer de quem são os dados. ──
+   A moldura do Wix pode ser muito alta (12 mil px): o cartão fica no topo, não no meio. */
+.im-conta{display:none}
+html.im-cobrir .im-conta,html.im-conta-aberta .im-conta{display:flex;position:fixed;inset:0;z-index:2147483000;overflow-y:auto;align-items:flex-start;justify-content:center;padding:clamp(16px,6vh,64px) 16px 28px;background:radial-gradient(700px 380px at 50% 0%,var(--green-dim),transparent 70%),var(--bg)}
+html.im-cobrir .layout,html.im-conta-aberta .layout{visibility:hidden}
+.im-conta-carregando{display:flex;align-items:center;gap:10px;margin-top:40px;color:var(--text2);font-size:14px}
+.im-conta-carregando .loading-spin{width:18px;height:18px;border-top-color:var(--green)}
+.conta-card{width:min(430px,100%);margin:0 auto;background:var(--surface);border:1px solid var(--border);border-radius:20px;box-shadow:var(--shadow-md);padding:24px 22px;display:flex;flex-direction:column;gap:14px;text-align:left;color:var(--text)}
+.conta-marca{display:flex;align-items:center;gap:10px;font-size:16px;line-height:1.2}
+.conta-marca svg{width:32px;height:32px;flex:none;color:var(--text)}
+.conta-marca em{font-style:normal;color:var(--green)}
+.conta-marca small{display:block;font-size:12px;font-weight:500;color:var(--text3)}
+.conta-card h1{font-size:22px;line-height:1.2;margin:2px 0 0;outline:none;letter-spacing:-.01em}
+.conta-sub{margin-top:6px;font-size:13.5px;line-height:1.5;color:var(--text2)}
+.conta-seg{display:flex;background:var(--surface2);border:1px solid var(--border);border-radius:13px;padding:3px;gap:2px}
+.conta-seg button{flex:1;min-height:38px;border:0;border-radius:10px;background:transparent;font:inherit;font-weight:700;font-size:13.5px;color:var(--text2);cursor:pointer;white-space:nowrap}
+.conta-seg button:hover{color:var(--text)}
+.conta-seg button[aria-pressed=true]{background:var(--green);color:var(--on-green)}
+.conta-form{display:flex;flex-direction:column;gap:12px}
+.conta-campo{display:flex;flex-direction:column;gap:5px}
+.conta-campo label{font-size:12.5px;font-weight:700;color:var(--text2)}
+.conta-form input{font-size:16px} /* 16 px: o iPhone não dá zoom ao tocar no campo */
+.conta-form input[aria-invalid=true]{border-color:var(--neg)}
+.conta-senha{display:flex;gap:8px}
+.conta-senha input{flex:1;min-width:0}
+.conta-senha .btn{flex:none;min-width:44px;min-height:44px;justify-content:center;padding:0 12px}
+.conta-senha .btn[aria-pressed=true]{color:var(--green);border-color:var(--green)}
+.conta-dica{font-size:12px;color:var(--text3)}
+.conta-enviar{width:100%;min-height:48px;font-size:15px;font-weight:700;justify-content:center}
+.conta-enviar[aria-busy=true]{opacity:.75;cursor:progress}
+.conta-esqueci{align-self:center;border:0;background:none;font:inherit;font-size:13.5px;color:var(--green);text-decoration:underline;text-underline-offset:2px;cursor:pointer;padding:4px}
+.conta-msg{border-radius:12px;padding:10px 12px;font-size:13.5px;line-height:1.45;display:flex;flex-direction:column;gap:8px;align-items:flex-start;color:var(--text);background:color-mix(in srgb,var(--neg) 10%,var(--surface));border:1px solid color-mix(in srgb,var(--neg) 40%,var(--border))}
+.conta-msg.ok{background:var(--green-dim);border-color:color-mix(in srgb,var(--green) 40%,var(--border))}
+.conta-msg[hidden]{display:none}
+.conta-ou{display:flex;align-items:center;gap:10px;color:var(--text3);font-size:12px;text-transform:uppercase;letter-spacing:.08em}
+.conta-ou::before,.conta-ou::after{content:"";flex:1;height:1px;background:var(--border)}
+.conta-social{width:100%;min-height:46px;justify-content:center;gap:8px;font-weight:600}
+.conta-social-dica{margin-top:-8px;text-align:center;font-size:12px;color:var(--text3)}
+.conta-rodape{margin:2px 0 0;font-size:12px;line-height:1.5;color:var(--text3)}
+.conta-rodape svg.i{width:13px;height:13px;vertical-align:-2px}
+.conta-rodape a{color:var(--green);text-decoration:underline;text-underline-offset:2px}
+@media(max-width:380px){.conta-card{padding:20px 16px;border-radius:16px}.conta-card h1{font-size:20px}}
 @media print{.sidebar,.topbar,.mobile-topbar,.mobile-nav,.fab,.ticker-banner{display:none!important}body{overflow:visible}.layout{display:block;height:auto}.main-scroll{overflow:visible}}
 </style>
 </head>
@@ -1474,7 +1516,12 @@ a.btn,a.btn:hover{text-decoration:none}
 <script>
 /* Tema antes da primeira pintura (a página não pisca claro→escuro). Só vale a escolha da pessoa; sem escolha = claro. */
 (function(){ var t='light'; try{ var s=JSON.parse(localStorage.getItem('carteira_settings_v1')||'{}'); if(s.temaEscolhido && /^(light|dark|brand)$/.test(s.tema)) t=s.tema; }catch(e){} document.body.className=t; })();
+/* Dentro do site (a página da plataforma pode estar liberada para todos, e o app instalado abre direto nela), a tela fica
+   coberta até o Wix dizer quem entrou: a carteira guardada neste navegador não aparece para outra pessoa que abra a
+   plataforma no mesmo aparelho (por exemplo, depois de alguém sair da conta pelo menu do site). Ver CONTA, mais abaixo. */
+(function(){ var em=true; try{ em = window.self !== window.top; }catch(e){} if(em) document.documentElement.classList.add('im-cobrir'); })();
 </script>
+<div class="im-conta" id="im-conta"><div class="im-conta-carregando" role="status"><span class="loading-spin"></span><span>Abrindo a sua carteira…</span></div></div>
 <!-- Ícones (traço, mesmo estilo do Import Finances) -->
 <svg xmlns="http://www.w3.org/2000/svg" width="0" height="0" style="position:absolute" aria-hidden="true" focusable="false"><defs>
   <symbol id="i-dash" viewBox="0 0 24 24"><rect x="3" y="3" width="7" height="9" rx="1"/><rect x="14" y="3" width="7" height="5" rx="1"/><rect x="14" y="12" width="7" height="9" rx="1"/><rect x="3" y="16" width="7" height="5" rx="1"/></symbol>
@@ -2807,7 +2854,7 @@ const WIX_RESPOSTA_MAX_MS = (window.__imTeste && window.__imTeste.respostaMs) ||
 const WIX_ESPERAS   = (window.__imTeste && window.__imTeste.esperas) || [3000, 8000, 20000, 45000, 60000];   // espera entre tentativas depois de uma falha (a última repete)
 
 // Versão da plataforma (aparece em Minha conta → Sobre e no relatório de salvamento: ajuda a saber qual versão o cliente está usando)
-const APP_VERSAO = '2.3.3 · 31/10/2026';
+const APP_VERSAO = '2.4.0 · 04/11/2026';
 
 // O que o indicador do topo mostra quando se clica nele (Diagnóstico da nuvem)
 const _wixDiag = { ultimoOk: 0, erro: null, falhas: 0, envios: 0, erroCarga: '', cargaProblemas: [], nuvem: {}, ultimoResumo: null };
@@ -3051,6 +3098,246 @@ if(WIX_MODE){
   });
 }
 
+// ══════════════════════════════════════════════════════════════════
+// CONTA — criar conta / entrar DENTRO da plataforma (2.4.0, 04/11/2026)
+// A página da Carteira no Wix pode ficar liberada para todos (o app instalado no celular ou no computador abre direto nela).
+// Quem ainda não entrou recebe do código da página WIX_NAO_LOGADO e vê aqui "Crie sua conta grátis / Entre na sua conta":
+// e-mail e senha → código da página → Wix (a senha não é guardada em lugar nenhum). Google e Facebook só existem na janela
+// de acesso do Wix (o Wix não deixa um formulário próprio entrar por eles): o botão abre essa janela. Conta nova sem
+// assinatura = Plano Gratuito (ver PLANOS).
+// Dados de outra pessoa: WIX_DADOS traz o id do membro. Se mudou desde a última vez neste navegador, a cópia guardada aqui
+// (as chaves de WIX_SYNC_KEYS) é apagada antes de usar os dados da nuvem — senão a carteira de uma pessoa apareceria para
+// outra, e poderia até ser gravada na conta dela. Código da página antigo (sem `membro`): segue como antes.
+// Até o Wix responder, a tela fica coberta ("Abrindo a sua carteira…", ver o começo do <body>).
+// ══════════════════════════════════════════════════════════════════
+const IM_MEMBRO_KEY = 'im_membro_v1';   // de quem são os dados deste navegador (assinatura do id do membro; '?' = não se sabe)
+const CONTA = { modo:'', email:'', ocupado:false, entrando:false, desde:0, tentativas:0, naoLogado:false, req:0, pend:{} };
+const CONTA_SENHA_MIN = 6;
+const CONTA_LINKS = { planos:'https://www.importmoney.com/politica-dos-planos', privacidade:'https://www.importmoney.com/politica-de-privacidade' };
+// códigos em que o caminho da plataforma não deu e vale oferecer a janela do site (CAPTCHA, resposta inesperada, site sem resposta)
+const CONTA_JANELA_DO_SITE = ['CONTA_CAPTCHA', 'CONTA_ERRO', 'TIMEOUT'];
+const _contaLer = (k) => { try { return localStorage.getItem(k); } catch(e){ return null; } };
+const _contaGravar = (k, v) => { try { if(v === null) localStorage.removeItem(k); else localStorage.setItem(k, v); } catch(e){} };
+const _contaEl = () => document.getElementById('im-conta');
+const contaAberta = () => document.documentElement.classList.contains('im-conta-aberta');
+
+function contaCobrir(texto){
+  const el = _contaEl(); if(!el) return;
+  document.documentElement.classList.remove('im-conta-aberta');
+  document.documentElement.classList.add('im-cobrir');
+  el.innerHTML = `<div class="im-conta-carregando" role="status"><span class="loading-spin"></span><span>${_escP(texto || 'Abrindo a sua carteira…')}</span></div>`;
+}
+function contaDescobrir(){
+  document.documentElement.classList.remove('im-cobrir', 'im-conta-aberta');
+  const el = _contaEl(); if(el) el.innerHTML = '';
+}
+
+/** Pedido ao código da página com resposta (reqId): <tipo>_OK ou WIX_CONTA_ERRO. */
+function contaPedir(tipo, dados, ms){
+  return new Promise((res, rej) => {
+    const reqId = 'c' + (++CONTA.req) + '-' + Date.now().toString(36);
+    const t = setTimeout(() => { delete CONTA.pend[reqId]; const e = new Error('O site não respondeu a tempo.'); e.codigo = 'TIMEOUT'; rej(e); }, ms || 45000);
+    CONTA.pend[reqId] = { tipo, res: (m) => { clearTimeout(t); res(m); }, rej: (e) => { clearTimeout(t); rej(e); } };
+    try { (window.top||window.parent).postMessage(Object.assign({}, dados || {}, { tipo, reqId }), '*'); }
+    catch(x){ clearTimeout(t); delete CONTA.pend[reqId]; const e = new Error('Não foi possível falar com o site.'); e.codigo = 'TIMEOUT'; rej(e); }
+  });
+}
+
+const _LOGO_CONTA = '<svg viewBox="0 0 32 32" fill="none" aria-hidden="true"><polygon points="16,1 28,8 28,24 16,31 4,24 4,8" fill="none" stroke="#2ec98e" stroke-width="2"/><polygon points="16,6 11,12 14,12 14,18.5 18,18.5 18,12 21,12" fill="currentColor"/><polygon points="16,26 21,20 18,20 18,13.5 14,13.5 14,20 11,20" fill="#2ec98e"/></svg>';
+function mostrarConta(modo){
+  CONTA.modo = modo || CONTA.modo || (_contaLer(IM_MEMBRO_KEY) ? 'entrar' : 'criar');
+  CONTA.ocupado = false; CONTA.entrando = false;
+  const criar = CONTA.modo === 'criar', el = _contaEl();
+  if(!el) return;
+  document.documentElement.classList.remove('im-cobrir');
+  document.documentElement.classList.add('im-conta-aberta');
+  el.innerHTML = `<div class="conta-card" id="contaCard" role="dialog" aria-modal="true" aria-labelledby="contaTit">
+    <div class="conta-marca">${_LOGO_CONTA}<div><b>Import <em>Money</em></b><small>Carteira de ações</small></div></div>
+    <div>
+      <h1 id="contaTit" tabindex="-1">${criar ? 'Crie sua conta grátis' : 'Entre na sua conta'}</h1>
+      <p class="conta-sub">${criar ? `Você começa no Plano Gratuito: carteira, posições, proventos e cotações, e até ${LIMITE_NOTAS_GRATIS} notas de corretagem por mês, sem pagar nada e sem informar forma de pagamento.` : 'Use o e-mail e a senha da sua conta Import Money (a mesma do Import Finances).'}</p>
+    </div>
+    <div class="conta-seg" role="group" aria-label="Criar conta ou entrar">
+      <button type="button" data-conta="modo" data-v="criar" aria-pressed="${criar}">Criar conta</button>
+      <button type="button" data-conta="modo" data-v="entrar" aria-pressed="${!criar}">Já tenho conta</button>
+    </div>
+    <form class="conta-form" id="contaForm" novalidate>
+      <div class="conta-campo"><label for="contaEmail">E-mail</label>
+        <input id="contaEmail" name="email" type="email" autocomplete="${criar ? 'email' : 'username'}" inputmode="email" autocapitalize="off" spellcheck="false" required value="${_escP(CONTA.email)}"></div>
+      <div class="conta-campo"><label for="contaSenha">Senha</label>
+        <div class="conta-senha">
+          <input id="contaSenha" name="senha" type="password" autocomplete="${criar ? 'new-password' : 'current-password'}" required${criar ? ` minlength="${CONTA_SENHA_MIN}" aria-describedby="contaSenhaDica"` : ''}>
+          <button type="button" class="btn" data-conta="ver" aria-pressed="false" aria-label="Mostrar a senha" title="Mostrar a senha">${_icP('eye')}</button>
+        </div>
+        ${criar ? `<span class="conta-dica" id="contaSenhaDica">Mínimo de ${CONTA_SENHA_MIN} caracteres.</span>` : ''}</div>
+      <div class="conta-msg" id="contaMsg" role="alert" hidden></div>
+      <button class="btn btn-primary conta-enviar" type="submit" id="contaEnviar">${criar ? 'Criar conta grátis' : 'Entrar'}</button>
+      ${criar ? '' : '<button type="button" class="conta-esqueci" data-conta="senha">Esqueci minha senha</button>'}
+    </form>
+    <div class="conta-ou" aria-hidden="true"><span>ou</span></div>
+    <button type="button" class="btn conta-social" data-conta="social">${_icP('user')} ${criar ? 'Criar com Google ou Facebook' : 'Entrar com Google ou Facebook'}</button>
+    <span class="conta-social-dica">Abre a janela de acesso do site Import Money, onde ficam o Google e o Facebook.</span>
+    <p class="conta-rodape">${_icP('lock')} Sua carteira fica salva na sua conta Import Money e só aparece depois de entrar.${criar ? ` Ao criar a conta, você concorda com a <a href="${CONTA_LINKS.planos}" target="_blank" rel="noopener">Política dos planos</a> e a <a href="${CONTA_LINKS.privacidade}" target="_blank" rel="noopener">Política de Privacidade</a>.` : ''}</p>
+  </div>`;
+  document.getElementById('contaForm').addEventListener('submit', enviarConta);
+  try { document.getElementById('contaTit').focus({ preventScroll: true }); } catch(e){}
+}
+
+function avisoConta(texto, tipo, campo, codigo){
+  const m = document.getElementById('contaMsg'); if(!m) return;
+  m.className = 'conta-msg' + (tipo === 'ok' ? ' ok' : '');
+  const janela = tipo !== 'ok' && CONTA_JANELA_DO_SITE.includes(codigo || '');
+  m.innerHTML = `<span>${_escP(texto)}</span>`
+    + (janela ? '<button type="button" class="btn btn-sm" data-conta="social">Abrir a janela do site</button>' : '')
+    + (codigo === 'EMAIL_EM_USO' ? '<button type="button" class="btn btn-sm" data-conta="modo" data-v="entrar">Entrar com esse e-mail</button>' : '');
+  m.hidden = false;
+  if(campo){ const c = document.querySelector(campo); if(c){ c.setAttribute('aria-invalid', 'true'); try { c.focus({ preventScroll: true }); } catch(e){} } }
+}
+function ocupadoConta(on, texto){
+  CONTA.ocupado = on;
+  const b = document.getElementById('contaEnviar'); if(!b) return;
+  b.disabled = on; b.setAttribute('aria-busy', on ? 'true' : 'false');
+  b.textContent = on ? texto : (CONTA.modo === 'criar' ? 'Criar conta grátis' : 'Entrar');
+}
+
+async function enviarConta(ev){
+  ev.preventDefault();
+  if(CONTA.ocupado || CONTA.entrando) return;
+  const criar = CONTA.modo === 'criar';
+  const ce = document.getElementById('contaEmail'), cs = document.getElementById('contaSenha');
+  ce.removeAttribute('aria-invalid'); cs.removeAttribute('aria-invalid');
+  const email = ce.value.trim(), senha = cs.value;
+  CONTA.email = email;
+  if(!/^[^\s@]+@[^\s@]+\.[^\s@]{2,}$/.test(email)) return avisoConta('Digite um e-mail válido (por exemplo, nome@gmail.com).', 'erro', '#contaEmail');
+  if(!senha) return avisoConta('Digite a senha.', 'erro', '#contaSenha');
+  if(criar && senha.length < CONTA_SENHA_MIN) return avisoConta(`A senha precisa ter pelo menos ${CONTA_SENHA_MIN} caracteres.`, 'erro', '#contaSenha');
+  document.getElementById('contaMsg').hidden = true;
+  ocupadoConta(true, criar ? 'Criando sua conta…' : 'Entrando…');
+  try {
+    if(criar){
+      const r = await contaPedir('WIX_CADASTRAR', { email, senha }, 45000);
+      if(r.status && r.status !== 'ACTIVE'){ // PENDING: o site pede confirmação do e-mail ou aprovação
+        mostrarConta('entrar');
+        document.getElementById('contaEmail').value = email;
+        avisoConta(`Conta criada! Antes de entrar, confirme o e-mail que o site enviou para ${email} (veja também o spam). Depois, entre aqui com seu e-mail e senha.`, 'ok');
+        return;
+      }
+    } else {
+      await contaPedir('WIX_ENTRAR', { email, senha }, 45000);
+    }
+    entrouNaConta();
+  } catch(e){
+    ocupadoConta(false);
+    const cod = (e && e.codigo) || '';
+    const msg = cod === 'TIMEOUT' ? 'O site não respondeu a tempo. Confira a internet e tente de novo, ou use a janela do site.' : (e && e.message) || 'Não deu certo. Tente de novo.';
+    avisoConta(msg, 'erro', cod === 'SENHA_ERRADA' || cod === 'SENHA_FRACA' ? '#contaSenha' : (cod === 'EMAIL_INVALIDO' ? '#contaEmail' : null), cod);
+  }
+}
+
+/** Entrou (por aqui, pela janela do Wix ou pelo menu do site): pede os dados de novo. */
+function entrouNaConta(){
+  if(CONTA.entrando) return;
+  CONTA.entrando = true; CONTA.desde = Date.now(); CONTA.tentativas = 0;
+  contaCobrir('Entrando na sua conta…');
+  try { (window.top||window.parent).postMessage({ tipo: 'WIX_PRONTO' }, '*'); } catch(e){}
+  // O site não mandou os dados: volta para a janela com o aviso, em vez de ficar parado em "Entrando…"
+  const desde = CONTA.desde;
+  setTimeout(() => {
+    if(!CONTA.entrando || CONTA.desde !== desde) return;
+    CONTA.desde = 0; CONTA.tentativas = 0;
+    mostrarConta('entrar');
+    avisoConta('O site não respondeu a tempo. Confira a internet e tente de novo, ou use a janela do site.', 'erro', null, 'TIMEOUT');
+  }, 30000);
+}
+/** O Wix disse que ninguém entrou. Logo depois de entrar, a sessão pode levar um instante para valer no servidor:
+ *  tenta de novo algumas vezes antes de voltar a mostrar a janela. */
+function _contaTentarDeNovo(){
+  if(!(CONTA.desde && Date.now() - CONTA.desde < 20000 && CONTA.tentativas < 4)) return false;
+  CONTA.tentativas++;
+  setTimeout(() => { try { (window.top||window.parent).postMessage({ tipo: 'WIX_PRONTO' }, '*'); } catch(e){} }, 1200 * CONTA.tentativas);
+  return true;
+}
+function naoLogadoConta(){
+  CONTA.naoLogado = true;
+  if(_contaTentarDeNovo()) return;
+  CONTA.desde = 0; CONTA.tentativas = 0; CONTA.entrando = false;
+  if(!contaAberta()) mostrarConta();   // já aberta (a resposta repetida do Wix): não apaga o que a pessoa está digitando
+}
+/** Acabou de entrar e o Wix devolveu erro ao carregar os dados (a sessão ainda não vale no servidor: o backend não acha o
+ *  membro e o Wix troca o motivo por um texto genérico). Tenta de novo; se continuar, volta para a janela com o aviso. */
+function erroAoEntrarConta(){
+  if(_contaTentarDeNovo()) return;
+  CONTA.desde = 0; CONTA.tentativas = 0;
+  mostrarConta('entrar');
+  avisoConta('Você entrou, mas o site não entregou os seus dados agora. Espere um instante e entre de novo.', 'erro', null, 'TIMEOUT');
+}
+
+/** Antes de os dados da nuvem entrarem: confere de quem são os dados deste navegador. Devolve true se recarregou. */
+function contaConferirMembro(msg){
+  CONTA.naoLogado = false; CONTA.entrando = false; CONTA.desde = 0; CONTA.tentativas = 0;
+  const novo = msg && msg.membro ? _wixAssinatura('membro:' + String(msg.membro)) : '';
+  const antes = _contaLer(IM_MEMBRO_KEY);
+  if(novo && antes && antes !== '?' && antes !== novo){
+    // Outra pessoa entrou neste navegador: a cópia local é da anterior. Apaga (sem mandar nada à nuvem) e recarrega coberto.
+    WIX_SYNC_KEYS.forEach((k) => { try { localStorage.removeItem(k); } catch(e){} });
+    _wixSaveQueue = {}; _wixSegurados = {};
+    if(_wixSaveTimer){ clearTimeout(_wixSaveTimer); _wixSaveTimer = null; }
+    _contaGravar(IM_MEMBRO_KEY, novo);
+    contaCobrir('Abrindo a sua carteira…');
+    location.reload();
+    return true;
+  }
+  _contaGravar(IM_MEMBRO_KEY, novo || antes || '?');
+  contaDescobrir();
+  return false;
+}
+
+// Cliques da janela (botões com data-conta)
+document.addEventListener('click', async (ev) => {
+  const t = ev.target && ev.target.closest ? ev.target.closest('[data-conta]') : null;
+  if(!t || !t.closest('#im-conta')) return;
+  const acao = t.dataset.conta;
+  if(acao === 'modo'){ const e = document.getElementById('contaEmail'); if(e) CONTA.email = e.value.trim(); mostrarConta(t.dataset.v === 'entrar' ? 'entrar' : 'criar'); return; }
+  if(acao === 'ver'){
+    const s = document.getElementById('contaSenha'); if(!s) return;
+    const ver = s.type === 'password';
+    s.type = ver ? 'text' : 'password';
+    t.setAttribute('aria-pressed', ver ? 'true' : 'false');
+    t.setAttribute('aria-label', ver ? 'Esconder a senha' : 'Mostrar a senha'); t.title = t.getAttribute('aria-label');
+    t.innerHTML = _icP(ver ? 'eye-off' : 'eye');
+    return;
+  }
+  if(acao === 'social'){
+    // Google, Facebook (e o formulário do Wix, se o da plataforma não der): a janela do site. Quem fecha sem entrar continua aqui.
+    if(CONTA.entrando) return;
+    try { await contaPedir('WIX_LOGIN', { modo: CONTA.modo === 'criar' ? 'signup' : 'login' }, 600000); entrouNaConta(); }
+    catch(e){ if(contaAberta()) avisoConta('A janela do site foi fechada antes de terminar. Quando quiser, tente de novo.', 'ok'); }
+    return;
+  }
+  if(acao === 'senha'){
+    const e = document.getElementById('contaEmail'); if(e) CONTA.email = e.value.trim();
+    try { await contaPedir('WIX_SENHA', {}, 600000); if(contaAberta()) avisoConta('Pronto: se houver uma conta com esse e-mail, chegam as instruções para criar uma senha nova (veja também o spam).', 'ok'); }
+    catch(x){ /* janela fechada: nada a fazer */ }
+  }
+});
+
+// Respostas e avisos do código da página (registrado ANTES do tratamento de WIX_DADOS, logo abaixo: a conferência do
+// membro acontece antes de os dados entrarem)
+window.addEventListener('message', (event) => {
+  const msg = event.data;
+  if(!msg || typeof msg !== 'object' || typeof msg.tipo !== 'string') return;
+  if(msg.reqId && CONTA.pend[msg.reqId]){
+    const p = CONTA.pend[msg.reqId];
+    if(msg.tipo === p.tipo + '_OK'){ delete CONTA.pend[msg.reqId]; p.res(msg); }
+    else if(msg.tipo === 'WIX_CONTA_ERRO'){ delete CONTA.pend[msg.reqId]; const e = new Error(String(msg.erro || 'Não deu certo.')); e.codigo = String(msg.codigo || 'CONTA_ERRO'); p.rej(e); }
+    return;
+  }
+  if(msg.tipo === 'WIX_NAO_LOGADO'){ naoLogadoConta(); return; }
+  if(msg.tipo === 'WIX_ERRO' && CONTA.entrando && !_wixReady && !_wixTx){ event.stopImmediatePropagation(); erroAoEntrarConta(); return; }
+  if(msg.tipo === 'WIX_LOGADO'){ if(contaAberta() || CONTA.naoLogado) entrouNaConta(); return; }
+  if(msg.tipo === 'WIX_DADOS'){ if(contaConferirMembro(msg)) event.stopImmediatePropagation(); }
+});
+
 // Receber dados do Wix ao carregar (injeção inicial de dados)
 window.addEventListener('message', (event) => {
   const msg = event.data;
@@ -3151,9 +3438,11 @@ function wixInit() {
   setTimeout(() => {
     if(!_wixReady){ try { (window.top||window.parent).postMessage({ tipo: 'WIX_PRONTO' }, '*'); } catch(e){} }
   }, 1500);
-  // Se mesmo assim o Wix não responder, segue com o que há neste navegador (indicador mostra "sem conexão")
+  // Se mesmo assim o Wix não responder, segue com o que há neste navegador (indicador mostra "sem conexão").
+  // Não vale para quem o Wix disse que não entrou: essa pessoa fica na janela de criar conta / entrar (ver CONTA).
   setTimeout(() => {
-    if(!_wixReady){
+    if(!_wixReady && !CONTA.naoLogado && !contaAberta() && !CONTA.entrando){
+      contaDescobrir();
       _wixReady = true;
       wixBootApp(true);
       // O Wix respondeu com erro ao carregar (ex.: sessão expirada): diz o motivo em vez de só "sem conexão"
@@ -3166,7 +3455,17 @@ function wixInit() {
 // ── Conta Wix: sair e navegar para páginas da Área de Membros ──────
 function wixSair(){
   if(!WIX_MODE){ toast('Disponível apenas dentro do Wix.', 'warn'); return; }
-  try { (window.top||window.parent).postMessage({ tipo: 'WIX_LOGOUT' }, '*'); } catch(e){}
+  // Antes de sair, termina de salvar (depois do logout o Wix não grava mais nada desta conta). Na volta, a plataforma
+  // mostra "Entre na sua conta" (ver CONTA).
+  contaCobrir('Saindo da conta…');
+  wixFlushSaveNow();
+  const t0 = Date.now();
+  const iv = setInterval(() => {
+    const pendente = _wixTx || Object.keys(_wixSaveQueue).some(k => !_wixSegurados[k]);
+    if(pendente && Date.now() - t0 < 8000) return;
+    clearInterval(iv);
+    try { (window.top||window.parent).postMessage({ tipo: 'WIX_LOGOUT' }, '*'); } catch(e){}
+  }, 200);
 }
 function wixNavegarConta(destino){
   if(!WIX_MODE){ toast('Disponível apenas dentro do Wix.', 'warn'); return; }
