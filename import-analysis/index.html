@@ -49,10 +49,15 @@
   nav.secoes { display: flex; gap: 4px; overflow-x: auto; margin: 18px 0 8px; padding: 4px;
     background: var(--surface); border: 1px solid var(--border); border-radius: 12px; scrollbar-width: none; }
   nav.secoes::-webkit-scrollbar { display: none; }
-  nav.secoes a { flex: none; text-decoration: none; color: var(--text-2); font-weight: 600; font-size: 13.5px; padding: 8px 14px; border-radius: 9px; }
-  nav.secoes a:hover, nav.secoes a:focus-visible { background: var(--surface-2); color: var(--text); outline: none; }
+  nav.secoes button { flex: none; font: inherit; font-size: 13.5px; font-weight: 700; color: var(--text-2); background: none; border: 0;
+    padding: 9px 14px; border-radius: 9px; cursor: pointer; }
+  nav.secoes button:hover { background: var(--surface-2); color: var(--text); }
+  nav.secoes button[aria-selected="true"] { background: var(--accent); color: #04140D; }
+  nav.secoes button:focus-visible { outline: 2px solid var(--accent); outline-offset: 1px; }
+  .aba > h2.sec { display: none; }
+  .aba[hidden] { display: none; }
 
-  section { margin-top: 22px; scroll-margin-top: 12px; }
+  section { margin-top: 14px; }
   h2.sec { display: flex; align-items: center; gap: 10px; margin: 0 0 12px; font-size: 13px; font-weight: 800;
     letter-spacing: .08em; text-transform: uppercase; color: var(--text); }
   h2.sec::before { content: ""; width: 4px; height: 18px; border-radius: 2px; background: var(--accent); }
@@ -178,6 +183,10 @@
     .kpi-v { font-size: 22px; }
     .osc, .osc.anual { grid-template-columns: repeat(3, minmax(0, 1fr)); }
     .mini { grid-template-columns: 1fr; }
+    .tiles { grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 8px; }
+    .tile { padding: 9px 10px 10px; }
+    .tile .v { font-size: 17px; }
+    .grupo { padding-left: 10px; }
     .chart-box, .chart-box.dy { height: 240px; }
     .card { padding: 14px; }
     th, td { padding: 8px 8px; font-size: 12.5px; }
@@ -212,6 +221,9 @@ const isoLocal = d => new Date(d.getTime() - d.getTimezoneOffset() * 60000).toIS
 const CSS = getComputedStyle(document.documentElement);
 const cor = n => CSS.getPropertyValue(n).trim();
 
+const ABAS = [["cotacao", "Cotação"], ["indicadores", "Indicadores"], ["historico", "Histórico"], ["resultados", "Resultados"],
+  ["proventos", "Proventos"], ["ficha", "Ficha"], ["sobre", "Sobre os dados"]];
+let abaAtiva = "cotacao";
 let D = null;                 // dados do ticker
 let Q = null;                 // cotação ao vivo { preco, anterior, hora, serie }
 const graficos = {};
@@ -283,14 +295,14 @@ function render() {
   </header>
   <p class="aviso-topo">${esc(D.aviso)}</p>
 
-  <nav class="secoes" aria-label="Seções">
-    <a href="#cotacao">Cotação</a><a href="#indicadores">Indicadores</a><a href="#historico">Histórico</a>
-    <a href="#resultados">Resultados</a><a href="#proventos">Proventos</a><a href="#ficha">Ficha</a><a href="#sobre">Sobre os dados</a>
+  <div class="kpis" id="kpis" style="margin-top:18px"></div>
+
+  <nav class="secoes" role="tablist" aria-label="Seções da análise" id="abas">
+    ${ABAS.map(([id, nome]) => `<button type="button" role="tab" id="aba-${id}" data-aba="${id}" aria-controls="${id}" aria-selected="${id === abaAtiva}" tabindex="${id === abaAtiva ? 0 : -1}">${nome}</button>`).join("")}
   </nav>
 
-  <section id="cotacao" aria-label="Cotação">
-    <div class="kpis" id="kpis"></div>
-    <div class="card" style="margin-top:14px">
+  <section id="cotacao" class="aba" role="tabpanel" aria-labelledby="aba-cotacao" ${abaAtiva === "cotacao" ? "" : "hidden"}>
+    <div class="card">
       <div class="card-h">
         <h3>Cotação ${esc(D.ticker)}</h3>
         <div class="seg" role="group" aria-label="Período do gráfico" id="periodos">
@@ -307,12 +319,12 @@ function render() {
     </div>
   </section>
 
-  <section id="indicadores">
+  <section id="indicadores" class="aba" role="tabpanel" aria-labelledby="aba-indicadores" ${abaAtiva === "indicadores" ? "" : "hidden"}>
     <h2 class="sec">Indicadores fundamentalistas</h2>
     <div class="card" id="grade"></div>
   </section>
 
-  <section id="historico">
+  <section id="historico" class="aba" role="tabpanel" aria-labelledby="aba-historico" ${abaAtiva === "historico" ? "" : "hidden"}>
     <h2 class="sec">Histórico de indicadores</h2>
     <div class="card">
       <div class="card-h"><h3 id="histTitulo"></h3></div>
@@ -334,7 +346,7 @@ function render() {
     </div>
   </section>
 
-  <section id="resultados">
+  <section id="resultados" class="aba" role="tabpanel" aria-labelledby="aba-resultados" ${abaAtiva === "resultados" ? "" : "hidden"}>
     <h2 class="sec">Resultados</h2>
     <div class="two">
       <div class="card">
@@ -365,7 +377,7 @@ function render() {
     </div>
   </section>
 
-  <section id="proventos">
+  <section id="proventos" class="aba" role="tabpanel" aria-labelledby="aba-proventos" ${abaAtiva === "proventos" ? "" : "hidden"}>
     <h2 class="sec">Proventos</h2>
     <div class="card">
       <div class="mini num">${D.proventos.resumo.map(([l, v, s]) => `<div><span>${esc(l)}</span><b>${esc(v)}</b><span>${esc(s)}</span></div>`).join("")}</div>
@@ -388,7 +400,7 @@ function render() {
     </div>
   </section>
 
-  <section id="ficha">
+  <section id="ficha" class="aba" role="tabpanel" aria-labelledby="aba-ficha" ${abaAtiva === "ficha" ? "" : "hidden"}>
     <h2 class="sec">Ficha fundamentalista</h2>
     <div class="card">
       <div class="tabs" role="tablist" aria-label="Seções da ficha">
@@ -408,7 +420,7 @@ function render() {
     </div>
   </section>
 
-  <section id="sobre" class="sobre">
+  <section id="sobre" class="aba sobre" role="tabpanel" aria-labelledby="aba-sobre" ${abaAtiva === "sobre" ? "" : "hidden"}>
     <h2 class="sec">Sobre os dados</h2>
     <div class="card">
       ${D.sobreDados.map(t => `<p>${esc(t)}</p>`).join("")}
@@ -417,6 +429,7 @@ function render() {
   </section>`;
 
   ligarAbas();
+  ligarSecoes();
   desenharVivo();
   if (!window.Chart) { avisarAltura(); return; }
   configChart();
@@ -609,8 +622,26 @@ function graficoDy() {
   });
 }
 
+function ligarSecoes() {
+  const tabs = [...document.querySelectorAll('#abas [role="tab"]')];
+  const ativar = (t, foco) => {
+    abaAtiva = t.dataset.aba;
+    tabs.forEach(x => { const on = x === t; x.setAttribute("aria-selected", on); x.tabIndex = on ? 0 : -1; $("#" + x.dataset.aba).hidden = !on; });
+    if (foco) t.focus({ preventScroll: true });
+    t.scrollIntoView({ block: "nearest", inline: "nearest" });
+    avisarAltura();
+  };
+  tabs.forEach((t, i) => {
+    t.addEventListener("click", () => ativar(t, false));
+    t.addEventListener("keydown", e => {
+      if (e.key === "ArrowRight") ativar(tabs[(i + 1) % tabs.length], true);
+      if (e.key === "ArrowLeft") ativar(tabs[(i - 1 + tabs.length) % tabs.length], true);
+    });
+  });
+}
+
 function ligarAbas() {
-  const tabs = [...document.querySelectorAll('[role="tab"]')];
+  const tabs = [...document.querySelectorAll('#ficha [role="tab"]')];
   const ativar = t => {
     tabs.forEach(x => { const on = x === t; x.setAttribute("aria-selected", on); x.tabIndex = on ? 0 : -1; $("#" + x.getAttribute("aria-controls")).hidden = !on; });
     t.focus({ preventScroll: true }); avisarAltura();
