@@ -52,12 +52,11 @@
   nav.secoes button { flex: none; font: inherit; font-size: 13.5px; font-weight: 700; color: var(--text-2); background: none; border: 0;
     padding: 9px 14px; border-radius: 9px; cursor: pointer; }
   nav.secoes button:hover { background: var(--surface-2); color: var(--text); }
-  nav.secoes button[aria-selected="true"] { background: var(--accent); color: #04140D; }
+  nav.secoes button[aria-current="true"] { background: var(--accent); color: #04140D; }
   nav.secoes button:focus-visible { outline: 2px solid var(--accent); outline-offset: 1px; }
-  .aba > h2.sec { display: none; }
-  .aba[hidden] { display: none; }
 
-  section { margin-top: 14px; }
+
+  section { margin-top: 22px; scroll-margin-top: 12px; }
   h2.sec { display: flex; align-items: center; gap: 10px; margin: 0 0 12px; font-size: 13px; font-weight: 800;
     letter-spacing: .08em; text-transform: uppercase; color: var(--text); }
   h2.sec::before { content: ""; width: 4px; height: 18px; border-radius: 2px; background: var(--accent); }
@@ -297,11 +296,11 @@ function render() {
 
   <div class="kpis" id="kpis" style="margin-top:18px"></div>
 
-  <nav class="secoes" role="tablist" aria-label="Seções da análise" id="abas">
-    ${ABAS.map(([id, nome]) => `<button type="button" role="tab" id="aba-${id}" data-aba="${id}" aria-controls="${id}" aria-selected="${id === abaAtiva}" tabindex="${id === abaAtiva ? 0 : -1}">${nome}</button>`).join("")}
+  <nav class="secoes" aria-label="Ir para a seção" id="abas">
+    ${ABAS.map(([id, nome]) => `<button type="button" data-aba="${id}" aria-current="${id === "cotacao"}">${nome}</button>`).join("")}
   </nav>
 
-  <section id="cotacao" class="aba" role="tabpanel" aria-labelledby="aba-cotacao" ${abaAtiva === "cotacao" ? "" : "hidden"}>
+  <section id="cotacao">
     <div class="card">
       <div class="card-h">
         <h3>Cotação ${esc(D.ticker)}</h3>
@@ -319,12 +318,12 @@ function render() {
     </div>
   </section>
 
-  <section id="indicadores" class="aba" role="tabpanel" aria-labelledby="aba-indicadores" ${abaAtiva === "indicadores" ? "" : "hidden"}>
+  <section id="indicadores">
     <h2 class="sec">Indicadores fundamentalistas</h2>
     <div class="card" id="grade"></div>
   </section>
 
-  <section id="historico" class="aba" role="tabpanel" aria-labelledby="aba-historico" ${abaAtiva === "historico" ? "" : "hidden"}>
+  <section id="historico">
     <h2 class="sec">Histórico de indicadores</h2>
     <div class="card">
       <div class="card-h"><h3 id="histTitulo"></h3></div>
@@ -346,7 +345,7 @@ function render() {
     </div>
   </section>
 
-  <section id="resultados" class="aba" role="tabpanel" aria-labelledby="aba-resultados" ${abaAtiva === "resultados" ? "" : "hidden"}>
+  <section id="resultados">
     <h2 class="sec">Resultados</h2>
     <div class="two">
       <div class="card">
@@ -377,7 +376,7 @@ function render() {
     </div>
   </section>
 
-  <section id="proventos" class="aba" role="tabpanel" aria-labelledby="aba-proventos" ${abaAtiva === "proventos" ? "" : "hidden"}>
+  <section id="proventos">
     <h2 class="sec">Proventos</h2>
     <div class="card">
       <div class="mini num">${D.proventos.resumo.map(([l, v, s]) => `<div><span>${esc(l)}</span><b>${esc(v)}</b><span>${esc(s)}</span></div>`).join("")}</div>
@@ -400,7 +399,7 @@ function render() {
     </div>
   </section>
 
-  <section id="ficha" class="aba" role="tabpanel" aria-labelledby="aba-ficha" ${abaAtiva === "ficha" ? "" : "hidden"}>
+  <section id="ficha">
     <h2 class="sec">Ficha fundamentalista</h2>
     <div class="card">
       <div class="tabs" role="tablist" aria-label="Seções da ficha">
@@ -420,7 +419,7 @@ function render() {
     </div>
   </section>
 
-  <section id="sobre" class="aba sobre" role="tabpanel" aria-labelledby="aba-sobre" ${abaAtiva === "sobre" ? "" : "hidden"}>
+  <section id="sobre" class="sobre">
     <h2 class="sec">Sobre os dados</h2>
     <div class="card">
       ${D.sobreDados.map(t => `<p>${esc(t)}</p>`).join("")}
@@ -623,21 +622,12 @@ function graficoDy() {
 }
 
 function ligarSecoes() {
-  const tabs = [...document.querySelectorAll('#abas [role="tab"]')];
-  const ativar = (t, foco) => {
-    abaAtiva = t.dataset.aba;
-    tabs.forEach(x => { const on = x === t; x.setAttribute("aria-selected", on); x.tabIndex = on ? 0 : -1; $("#" + x.dataset.aba).hidden = !on; });
-    if (foco) t.focus({ preventScroll: true });
-    t.scrollIntoView({ block: "nearest", inline: "nearest" });
-    avisarAltura();
-  };
-  tabs.forEach((t, i) => {
-    t.addEventListener("click", () => ativar(t, false));
-    t.addEventListener("keydown", e => {
-      if (e.key === "ArrowRight") ativar(tabs[(i + 1) % tabs.length], true);
-      if (e.key === "ArrowLeft") ativar(tabs[(i - 1 + tabs.length) % tabs.length], true);
-    });
-  });
+  const bts = [...document.querySelectorAll("#abas button")];
+  bts.forEach(b => b.addEventListener("click", () => {
+    bts.forEach(x => x.setAttribute("aria-current", x === b));
+    const alvo = $("#" + b.dataset.aba);
+    if (alvo) alvo.scrollIntoView({ behavior: "smooth", block: "start" });
+  }));
 }
 
 function ligarAbas() {
